@@ -10,96 +10,145 @@ export async function POST(req: Request, res: Response) {
         const session = await getAuthSession();
         if (!session?.user) {
             return NextResponse.json(
-                {
-                    error: "You must logged in",
-                },
-                {status: 401}
+                { error: "You must be logged in" },
+                { status: 401 }
             );
         }
+
         const body = await req.json();
-        const {amount,topic,type} = quizCreationSchema.parse(body);
-        const game = await prisma.game.create({
-            data: {
+        const { amount, topic, type } = quizCreationSchema.parse(body);
+
+        console.log("Creating game with:", { amount, topic, type });
+
+        // Use a transaction to ensure data consistency
+        const game = await prisma.$transaction(async (tx) => {
+            // Create the game
+            const newGame = await tx.game.create({
+                data: {
+                    topic,
+                    gameType: type,
+                    timeStarted: new Date(),
+                    userId: session.user.id,
+                },
+            });
+
+            console.log("Game created:", newGame.id);
+
+            // Update topic count
+            await tx.topic_count.upsert({
+                where: { topic },
+                create: {
+                    topic,
+                    count: 1
+                },
+                update: {
+                    count: {
+                        increment: 1
+                    }
+                }
+            });
+
+            console.log("Topic count updated");
+
+            // Generate questions
+            const questionsUrl = `${process.env.API_URL}/api/questions`;
+            console.log("Fetching questions from:", questionsUrl);
+
+            const { data } = await axios.post(questionsUrl, {
+                amount,
                 topic,
-                gameType: type,
-                timeStarted: new Date(),
-                userId: session.user.id,
-            },
+                type,
+            });
+
+            console.log("Questions API response:", data);
+
+            if (!data.questions || !Array.isArray(data.questions)) {
+                throw new Error('Invalid question format received');
+            }
+
+            if (type === "mcq") {
+                const manyData = data.questions.map((question: any) => {
+                    const options = [
+                        question.answer,
+                        question.option1,
+                        question.option2,
+                        question.option3
+                    ].sort(() => Math.random() - 0.5);
+
+                    return {
+                        question: question.question,
+                        answer: question.answer,
+                        options: JSON.stringify(options),
+                        gameId: newGame.id,
+                        questionType: type,
+                    };
+                });
+
+                await tx.question.createMany({
+                    data: manyData
+                });
+                console.log("MCQ questions created");
+            } else if (type === 'open_ended') {
+                const manyData = data.questions.map((question: any) => ({
+                    question: question.question,
+                    answer: question.answer,
+                    gameId: newGame.id,
+                    questionType: type,
+                }));
+
+                await tx.question.createMany({
+                    data: manyData
+                });
+                console.log("Open-ended questions created");
+            }
+
+            return newGame;
         });
 
-    await prisma.topic_count.upsert({
-        where: {
-            topic
-        },
-        create: {
-            topic,
-            count : 1
-        },
-        update: {
-            count: {
-                increment: 1
-            }
-        }
-    })
+        return NextResponse.json({
+            gameId: game.id,
+        });
 
-    const {data} = await axios.post(`${process.env.API_URL}/api/questions`, {
-            amount,
-            topic,
-            type,
-    });
-    if (type == "mcq"){
-        type mcqQuestion = {
-            question: string;
-            answer: string;
-            option1: string[];
-            option2: string[];
-            option3: string[];
-        }
-        let manyData = data.questions.map((question: mcqQuestion) => {
-            let options = [question.answer, question.option1, question.option2, question.option3];
-            options = options.sort(() => Math.random() - 0.5);
-            return {
-                question: question.question,
-                answer: question.answer,
-                options: JSON.stringify(options), // if it's not work -> will use postgres
-                gameId: game.id,
-                questionType: "mcq",
-            }
-        })
-        await prisma.question.createMany({
-            data: manyData
-        })
-    } else if (type == 'open_ended') {
-        type openQuestion = {
-            question: string;
-            answer: string;
-        }
-        let manyData = data.questions.map((question: openQuestion) => {
-            return {
-                question: question.question,
-                answer: question.answer,
-                gameId: game.id,
-                questionType: "open_ended",
-            }
-        })
-        await prisma.question.createMany({
-            data: manyData
-        })
-    }
-    return NextResponse.json({
-        gameId: game.id,
-    })
     } catch (error) {
+        console.error("Game creation error:", error);
+        
         if (error instanceof ZodError) {
             return NextResponse.json(
-                {
-                    error: error.issues,
-                },
-                {status: 400}
+                { error: "Invalid request data", details: error.issues },
+                { status: 400 }
             );
         }
-        return NextResponse.json({
-            error: "Something went wrong",
-        })
+
+        // Check if it's a Prisma error
+        if (error && typeof error === 'object' && 'code' in error) {
+            const prismaError = error as { code?: string; message?: string };
+            return NextResponse.json(
+                { 
+                    error: "Database error",
+                    details: prismaError.message || "Unknown database error",
+                    code: prismaError.code
+                },
+                { status: 500 }
+            );
+        }
+
+        // Check if it's an Axios error
+        if (axios.isAxiosError(error)) {
+            return NextResponse.json(
+                { 
+                    error: "Failed to generate questions",
+                    details: error.response?.data || error.message
+                },
+                { status: 500 }
+            );
+        }
+
+        return NextResponse.json(
+            { 
+                error: "Failed to create game",
+                details: error instanceof Error ? error.message : "Unknown error"
+            },
+            { status: 500 }
+        );
     }
 }

@@ -17,12 +17,12 @@ model Account {
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String?
-  access_token      String?
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String?
+  id_token          String? @db.Text
   session_state     String?
   user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -51,6 +51,11 @@ model User {
   sessions      Session[]
 }
 
+enum GameType {
+  mcq
+  open_ended
+}
+
 model Game {
   id          String     @id @default(cuid())
   userId      String
@@ -58,8 +63,7 @@ model Game {
   timeStarted DateTime
   topic       String
   timeEnded   DateTime?
-  gameType    String
-  // gameType    GameType
+  gameType    GameType
   user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
@@ -76,10 +80,10 @@ model Question {
   question          String
   answer            String
   gameId            String
-  options           String// for mcq questions (stored as JSON string)
+  options           Json? // for mcq questions
   percentageCorrect Float? // for open_ended questions
   isCorrect         Boolean? // for mcq questions
-  questionType      String
+  questionType      GameType
   userAnswer        String?
 
   game Game @relation(fields: [gameId], references: [id])

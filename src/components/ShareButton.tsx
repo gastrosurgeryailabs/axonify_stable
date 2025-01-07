@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Share } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 
 type ShareButtonProps = {
@@ -19,12 +19,18 @@ type ShareButtonProps = {
 
 export function ShareButton({ topic, gameId }: ShareButtonProps) {
   const [copied, setCopied] = useState(false);
+  const [currentShareLink, setCurrentShareLink] = useState('');
   const { toast } = useToast();
 
-  const shareLink = `${window.location.origin}/quiz?topic=${encodeURIComponent(topic)}`;
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setCurrentShareLink(`${window.location.origin}/quiz?topic=${encodeURIComponent(topic)}`);
+    }
+  }, [topic]);
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(shareLink);
+    if (!currentShareLink) return;
+    navigator.clipboard.writeText(currentShareLink);
     setCopied(true);
     toast({
       title: "Link Copied!",
@@ -52,7 +58,7 @@ export function ShareButton({ topic, gameId }: ShareButtonProps) {
         <div className="flex gap-2">
           <Input
             readOnly
-            value={shareLink}
+            value={currentShareLink}
             className="flex-1"
           />
           <Button onClick={copyToClipboard}>

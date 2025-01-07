@@ -12,11 +12,11 @@ import { BookOpen, CopyCheck } from 'lucide-react';
 import { Separator } from './ui/separator';
 import { Button } from './ui/button';
 import { useMutation } from '@tanstack/react-query';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { useRouter } from 'next/navigation';
 import LoadingQuestions from './LoadingQuestions';
 import { ShareButton } from './ShareButton';
-
+import { useToast } from '@/hooks/use-toast';
 
 type Props = {
   topicParam: string;
@@ -25,9 +25,11 @@ type Props = {
 type Input = z.infer<typeof quizCreationSchema>;
 
 const QuizCreation = ({topicParam}: Props) => {
-    const router = useRouter()
+    const router = useRouter();
+    const { toast } = useToast();
     const [finished, setFinished] = React.useState(false);
     const [showLoader, setShowLoader] = React.useState(false);
+    
     const {mutate: getQuestions, isPending} = useMutation({
         mutationFn: async ({amount, topic, type}: Input) => {
             const response = await axios.post('/api/game', {
@@ -37,19 +39,37 @@ const QuizCreation = ({topicParam}: Props) => {
             });
             return response.data;
         },
+        onError: (error) => {
+            setShowLoader(false);
+            if (error instanceof AxiosError) {
+                toast({
+                    title: "Error creating quiz",
+                    description: error.response?.data?.error || error.message,
+                    variant: "destructive",
+                });
+                console.error("Quiz creation error:", error.response?.data);
+            } else {
+                toast({
+                    title: "Error",
+                    description: "An unexpected error occurred",
+                    variant: "destructive",
+                });
+                console.error("Unexpected error:", error);
+            }
+        }
     });
 
 const form = useForm<Input>({
     resolver: zodResolver(quizCreationSchema),
     defaultValues: {
-        amount:3,
-        topic:topicParam,
-        type:"open_ended"
-        }
-    });
+        amount: 3,
+        topic: topicParam,
+        type: "open_ended"
+    }
+});
 
 function onSubmit(input: Input) {
-    setShowLoader(true)
+    setShowLoader(true);
     getQuestions(
         {
             amount: input.amount,
@@ -58,22 +78,18 @@ function onSubmit(input: Input) {
         }, 
         {
             onSuccess: ({gameId}) => {
-              setFinished(true)
-              setTimeout(() =>{
-              if (form.getValues("type") === "open_ended") {
-                  router.push(`/play/open-ended/${gameId}`);
-              } else {
-                  router.push(`/play/mcq/${gameId}`);
-              }
-              }, 1000)
-                
-            },
-            onError: () => {
-              setShowLoader(false)
+              setFinished(true);
+              setTimeout(() => {
+                if (form.getValues("type") === "open_ended") {
+                    router.push(`/play/open-ended/${gameId}`);
+                } else {
+                    router.push(`/play/mcq/${gameId}`);
+                }
+              }, 1000);
             }
-            }
-        );
-    }
+        }
+    );
+}
 
 form.watch();
 
