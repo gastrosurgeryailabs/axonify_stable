@@ -16,11 +16,28 @@ export async function POST(req: Request, res: Response) {
         }
 
         const body = await req.json();
-        const { amount, topic, type } = quizCreationSchema.parse(body);
+        const { amount, topic, type, targetLanguage } = quizCreationSchema.parse(body);
 
-        console.log("Creating game with:", { amount, topic, type });
+        console.log("Creating game with:", { amount, topic, type, targetLanguage });
 
-        // Use a transaction to ensure data consistency
+        // First, generate questions outside the transaction
+        const questionsUrl = process.env.API_URL ? `${process.env.API_URL}/api/questions` : '/api/questions';
+        console.log("Fetching questions from:", questionsUrl);
+
+        const { data } = await axios.post(questionsUrl, {
+            amount,
+            topic,
+            type,
+            targetLanguage,
+        });
+
+        console.log("Questions API response:", data);
+
+        if (!data?.questions || !Array.isArray(data.questions)) {
+            throw new Error('Invalid question format received');
+        }
+
+        // Then use transaction only for database operations with increased timeout
         const game = await prisma.$transaction(async (tx) => {
             // Create the game
             const newGame = await tx.game.create({
@@ -49,22 +66,6 @@ export async function POST(req: Request, res: Response) {
             });
 
             console.log("Topic count updated");
-
-            // Generate questions
-            const questionsUrl = `${process.env.API_URL}/api/questions`;
-            console.log("Fetching questions from:", questionsUrl);
-
-            const { data } = await axios.post(questionsUrl, {
-                amount,
-                topic,
-                type,
-            });
-
-            console.log("Questions API response:", data);
-
-            if (!data.questions || !Array.isArray(data.questions)) {
-                throw new Error('Invalid question format received');
-            }
 
             if (type === "mcq") {
                 const manyData = data.questions.map((question: any) => {
@@ -103,52 +104,30 @@ export async function POST(req: Request, res: Response) {
             }
 
             return newGame;
+        }, {
+            timeout: 10000 // Set timeout to 10 seconds
         });
 
+        if (!game?.id) {
+            throw new Error("Failed to create game - no game ID returned");
+        }
+
         return NextResponse.json({
-            gameId: game.id,
+            gameId: game.id
         });
 
     } catch (error) {
-        console.error("Game creation error:", error);
-        
-        if (error instanceof ZodError) {
-            return NextResponse.json(
-                { error: "Invalid request data", details: error.issues },
-                { status: 400 }
-            );
-        }
-
-        // Check if it's a Prisma error
-        if (error && typeof error === 'object' && 'code' in error) {
-            const prismaError = error as { code?: string; message?: string };
-            return NextResponse.json(
-                { 
-                    error: "Database error",
-                    details: prismaError.message || "Unknown database error",
-                    code: prismaError.code
-                },
-                { status: 500 }
-            );
-        }
-
-        // Check if it's an Axios error
-        if (axios.isAxiosError(error)) {
-            return NextResponse.json(
-                { 
-                    error: "Failed to generate questions",
-                    details: error.response?.data || error.message
-                },
-                { status: 500 }
-            );
-        }
+        console.log("Game creation failed:", error instanceof Error ? error.message : 'Something went wrong');
 
         return NextResponse.json(
             { 
-                error: "Failed to create game",
-                details: error instanceof Error ? error.message : "Unknown error"
+                error: error instanceof ZodError 
+                    ? "Invalid request data" 
+                    : (error instanceof Error ? error.message : 'Something went wrong')
             },
-            { status: 500 }
+            { 
+                status: error instanceof ZodError ? 400 : 500 
+            }
         );
     }
 }

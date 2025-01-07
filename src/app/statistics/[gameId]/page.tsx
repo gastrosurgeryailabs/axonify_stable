@@ -12,11 +12,12 @@ import React from 'react'
 
 type Props = {
     params: {
-        gameId: string;
+        gameId: string
     }
 }
 
-const StatisticsPage= async ({params: {gameId}}: Props) => {
+const StatisticsPage = async ({ params }: Props) => {
+    const gameId = params.gameId;
     const session = await getAuthSession()
     if (!session?.user){
         return redirect('/')

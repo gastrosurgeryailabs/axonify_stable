@@ -14,6 +14,8 @@ import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { cn, formatTimeDelta } from '@/lib/utils';
+import { playSound } from '@/lib/sounds';
+import TopicImage from './TopicImage';
 
 type Props = {
     game: Game & {questions: Pick<Question, 'id'| 'options'| 'question'>[]}
@@ -60,6 +62,7 @@ const MCQ = ({game}: Props) => {
         checkAnswer(undefined, {
             onSuccess: ({isCorrect}) =>{
                 if(isCorrect){
+                    playSound('correct');
                     toast({
                         title: "Correct!",
                         description: "Correct answer",
@@ -67,6 +70,7 @@ const MCQ = ({game}: Props) => {
                     })
                     setCorrectAnswers((prev) => prev + 1);
                 } else {
+                    playSound('wrong');
                     toast({
                         title: "Incorrect!",
                         description: "Incorrect answer",
@@ -124,66 +128,68 @@ const MCQ = ({game}: Props) => {
   }
 
   return (
-    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 md:w-[80vw] max-w-4xl w-[90vw]">
-        <div className="flex flex-row justify-between">
-            <div className="flex flex-col">
-        {/* topic */}
-        <p>
-            <span className='mr-2 text-slate-400'>Topic</span>
-            <span className='px-2 py-1 text-white rounded-lg bg-slate-800'>{game.topic}</span>
-        </p>
-        
-        <div className='flex self-start mt-3 text-slate-400'>
-            <Timer className='mr-2' />
-            {formatTimeDelta(differenceInSeconds(now, game.timeStarted))}
-        </div>
-        </div>
-        <MCQCounter correctAnswers={correctAnswers} wrongAnswers={wrongAnswers}/>
-    </div>
-    
-
-    <Card className='w-full mt-4'>
-        <CardHeader className='flex flex-row items-center'>
-            <CardTitle className='mr-5 text-center divide-y divide-zinc-600/50'>
-            <div>{questionIndex + 1}</div>
-            <div className='text-base text-slate-400'>
-                {game.questions.length}
-            </div>
-            </CardTitle>
-            <CardDescription className='flex-grow text-lg'>
-                {currentQuestion.question}
-            </CardDescription>
-        </CardHeader>
-
-    </Card>
-
-    <div className="flex flex-col items-center justify-center w-full mt-4">
-        {options.map((option, index) => {
-            return (
-                <Button key={index}
-                className='justify-start w-full py-8 mb-4'
-                variant={selectedChoice === index ? "default" : "secondary"}
-                onClick={()=> {
-                    setSelectedChoice(index);
-                }}>
-                    <div className="flex items-center justify-start">
-                        <div className="p-2 px-3 mr-5 border rounded-md">
-                            {index + 1}
-                        </div>
-                        <div className="text-start">{option}</div>
+    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 md:w-[80vw] max-w-4xl w-[90vw] p-4">
+        <div className="flex flex-col space-y-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                <div className="flex flex-col">
+                    <p>
+                        <span className='mr-2 text-slate-400'>Topic</span>
+                        <span className='px-2 py-1 text-white rounded-lg bg-slate-800'>{game.topic}</span>
+                    </p>
+                    
+                    <div className='flex self-start mt-3 text-slate-400'>
+                        <Timer className='mr-2' />
+                        {formatTimeDelta(differenceInSeconds(now, game.timeStarted))}
                     </div>
+                </div>
+                <MCQCounter correctAnswers={correctAnswers} wrongAnswers={wrongAnswers}/>
+            </div>
+
+            <TopicImage topic={game.topic} />
+
+            <Card className='w-full mt-4'>
+                <CardHeader className='flex flex-row items-center'>
+                    <CardTitle className='mr-5 text-center divide-y divide-zinc-600/50'>
+                        <div>{questionIndex + 1}</div>
+                        <div className='text-base text-slate-400'>
+                            {game.questions.length}
+                        </div>
+                    </CardTitle>
+                    <CardDescription className='flex-grow text-lg'>
+                        {currentQuestion.question}
+                    </CardDescription>
+                </CardHeader>
+            </Card>
+
+            <div className="flex flex-col items-center justify-center w-full mt-4 space-y-4">
+                {options.map((option, index) => {
+                    return (
+                        <Button key={index}
+                            className='justify-start w-full py-8'
+                            variant={selectedChoice === index ? "default" : "secondary"}
+                            onClick={()=> {
+                                setSelectedChoice(index);
+                            }}>
+                            <div className="flex items-center justify-start">
+                                <div className="p-2 px-3 mr-5 border rounded-md">
+                                    {index + 1}
+                                </div>
+                                <div className="text-start">{option}</div>
+                            </div>
+                        </Button>
+                    );
+                })}
+                <Button 
+                    className='mt-2'
+                    disabled={isChecking}
+                    onClick={() => {
+                        handleNext();
+                    }}>
+                    {isChecking && <Loader2 className='w-4 h-4 mr-2 animate-spin'/>}
+                    Next <ChevronRight className='w-4 h-4 ml-2' />
                 </Button>
-            );
-        })}
-        <Button className='mt-2'
-         disabled={isChecking}
-         onClick={() => {
-            handleNext();
-        }}>
-            {isChecking && <Loader2 className='w-4 h-4 mr-2 animated-spin'/>}
-            Next <ChevronRight className='w-4 h-4 ml-2' />
-        </Button>
-    </div>
+            </div>
+        </div>
     </div>
   )
 }
