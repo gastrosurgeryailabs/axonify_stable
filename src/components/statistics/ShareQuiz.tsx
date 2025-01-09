@@ -13,9 +13,11 @@ type Props = {
 
 const ShareQuiz = ({ game }: Props) => {
     const [shareLink, setShareLink] = useState(`/quiz?topic=${encodeURIComponent(game.topic)}`)
+    const [isMobile, setIsMobile] = useState(false)
 
     useEffect(() => {
         setShareLink(`${window.location.origin}/quiz?topic=${encodeURIComponent(game.topic)}`)
+        setIsMobile(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent))
     }, [game.topic])
 
     const quizType = game.gameType === 'mcq' ? 'Multiple Choice' : 'Open Ended'
@@ -34,11 +36,14 @@ I just ${accuracy}! Can you beat my score?
 Try now: ${shareLink}`
 
     const encodedMessage = encodeURIComponent(message)
+    const shareUrl = isMobile ? 
+        `whatsapp://send?text=${encodedMessage}` : 
+        `https://web.whatsapp.com/send?text=${encodedMessage}`
 
     return (
         <div className="flex justify-center mt-6 mb-4">
             <a 
-                href={`whatsapp://send?text=${encodedMessage}`}
+                href={shareUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 px-4 py-2 font-semibold text-white transition-colors bg-green-500 rounded-lg hover:bg-green-600"
