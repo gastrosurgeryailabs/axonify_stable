@@ -1,6 +1,7 @@
 import AccuracyCard from '@/components/statistics/AccuracyCard';
 import QuestionList from '@/components/statistics/QuestionList';
 import ResultCard from '@/components/statistics/ResultCard';
+import ShareQuiz from '@/components/statistics/ShareQuiz';
 import TimeTakenCard from '@/components/statistics/TimeTakenCard';
 import { buttonVariants } from '@/components/ui/button';
 import { prisma } from '@/lib/db';
@@ -66,7 +67,8 @@ if (game.gameType =='mcq') {
         <AccuracyCard accuracy={accuracy}/>
         <TimeTakenCard timeEnded={new Date()} timeStarted={game.timeStarted}/>
     </div>
-        <QuestionList questions={game.questions} />
+        <QuestionList questions={game.questions} game={game} />
+        <ShareQuiz game={game} />
     </div>
     </>
   )
