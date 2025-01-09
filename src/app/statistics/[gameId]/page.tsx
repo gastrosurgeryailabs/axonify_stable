@@ -67,7 +67,7 @@ if (game.gameType =='mcq') {
         <AccuracyCard accuracy={accuracy}/>
         <TimeTakenCard timeEnded={new Date()} timeStarted={game.timeStarted}/>
     </div>
-        <QuestionList questions={game.questions} game={game} />
+        <QuestionList questions={game.questions} />
         <ShareQuiz game={game} />
     </div>
     </>

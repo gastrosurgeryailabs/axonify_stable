@@ -38,7 +38,7 @@ Try now: ${shareLink}`
     return (
         <div className="flex justify-center mt-6 mb-4">
             <a 
-                href={`https://wa.me/send?text=${encodedMessage}`}
+                href={`whatsapp://send?text=${encodedMessage}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 px-4 py-2 font-semibold text-white transition-colors bg-green-500 rounded-lg hover:bg-green-600"
