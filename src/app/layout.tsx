@@ -20,8 +20,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={cn(inter.className,'antialiased min-h-screen pt-16')}>
+    <html lang="en" suppressHydrationWarning>
+      <body className={cn(inter.className, 'antialiased min-h-screen pt-16')} suppressHydrationWarning>
         <Providers>
           <div className="flex flex-col min-h-screen">
             <Navbar />

@@ -12,12 +12,14 @@ type Props = {
 }
 
 const ShareQuiz = ({ game }: Props) => {
-    const [shareLink, setShareLink] = useState(`/quiz?topic=${encodeURIComponent(game.topic)}`)
+    const [shareLink, setShareLink] = useState('')
     const [isMobile, setIsMobile] = useState(false)
 
     useEffect(() => {
-        setShareLink(`${window.location.origin}/quiz?topic=${encodeURIComponent(game.topic)}`)
-        setIsMobile(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent))
+        if (typeof window !== 'undefined') {
+            setShareLink(`${window.location.origin}/quiz?topic=${encodeURIComponent(game.topic)}`)
+            setIsMobile(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent))
+        }
     }, [game.topic])
 
     const quizType = game.gameType === 'mcq' ? 'Multiple Choice' : 'Open Ended'

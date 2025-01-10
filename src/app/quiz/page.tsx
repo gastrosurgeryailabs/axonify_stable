@@ -3,12 +3,10 @@ import { getAuthSession } from '@/lib/nextauth';
 import { redirect } from 'next/navigation';
 import React from 'react'
 
-interface SearchParams {
-    topic?: string;
-}
-
 interface Props {
-    searchParams: SearchParams;
+    searchParams: Promise<{
+        topic?: string;
+    }>;
 }
 
 export const metadata = {
@@ -21,8 +19,9 @@ const QuizPage = async ({ searchParams }: Props) => {
         return redirect('/');
     }
 
-    // Ensure searchParams is handled safely
-    const topic = (searchParams?.topic as string) || '';
+    // Await searchParams
+    const params = await searchParams;
+    const topic = typeof params?.topic === 'string' ? params.topic : '';
     
     return <QuizCreation topicParam={topic} />;
 };

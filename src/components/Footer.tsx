@@ -12,13 +12,16 @@ const Footer = () => {
           <div className="flex items-center gap-3">
             <span className="text-base text-muted-foreground whitespace-nowrap">Axonify by</span>
             <a href="https://axoncare.io/" target="_blank" rel="noopener noreferrer" className="flex items-center">
-              <Image
-                src="/logo.webp"
-                alt="Axonify Logo"
-                width={120}
-                height={120}
-                className="rounded-sm object-contain"
-              />
+              <div className="relative w-[120px] h-[40px]">
+                <Image
+                  src="/logo.webp"
+                  alt="Axonify Logo"
+                  fill
+                  sizes="120px"
+                  className="object-contain"
+                  loading="lazy"
+                />
+              </div>
             </a>
           </div>
 

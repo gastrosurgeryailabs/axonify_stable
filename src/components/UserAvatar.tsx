@@ -38,6 +38,7 @@ const UserAvatar = ({user}: Props) => {
                                 alt="profile image" 
                                 referrerPolicy='no-referrer'
                                 className="object-cover"
+                                sizes="(max-width: 40px) 100vw, 40px"
                             />
                         </div>
                     ) : (
