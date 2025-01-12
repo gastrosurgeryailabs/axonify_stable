@@ -11,7 +11,23 @@ const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: "Axonify",
-  description: "Engage, Learn, and Challenge Your Mind!",
+  description: "Your health guardians",
+  icons: {
+    icon: [
+      {
+        url: '/logo.png',
+        href: '/logo.png',
+        sizes: '42x55',
+        type: 'image/png',
+      }
+    ],
+    shortcut: '/logo.png',
+    apple: {
+      url: '/logo.png',
+      sizes: '42x55',
+      type: 'image/png',
+    },
+  },
 };
 
 export default function RootLayout({

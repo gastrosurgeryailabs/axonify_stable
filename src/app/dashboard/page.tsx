@@ -9,7 +9,12 @@ import RecentActivities from '@/components/dashboard/RecentActivities';
 type Props = {};
 
 export const metadata = {
-  title: 'Dashboard | Quizmify',
+  title: 'Dashboard | Axonify',
+  icons: {
+    icon: '/logo.png',
+    shortcut: '/logo.png',
+    apple: '/logo.png',
+  },
 }
 
 const Dashboard = async (props: Props) => {

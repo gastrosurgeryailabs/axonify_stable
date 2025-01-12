@@ -89,11 +89,12 @@ const QuizCreation = ({topicParam}: Props) => {
         resolver: zodResolver(quizCreationSchema),
         defaultValues: {
             amount: 3,
-            topic: topicParam,
+            topic: topicParam || "",
             type: "mcq",
             targetLanguage: "en",
             model: "gpt-3.5-turbo",
-            prompt: "You are a helpful AI that is able to generate questions and answers. Each question should be clear and complete. For MCQ, provide one correct answer and three plausible but incorrect options. For open-ended questions, mark important technical terms with [[term]] syntax."
+            prompt: "You are a helpful AI that is able to generate questions and answers. Each question should be clear and complete. For MCQ, provide one correct answer and three plausible but incorrect options. For open-ended questions, mark important technical terms with [[term]] syntax.",
+            apiKey: ""
         }
     });
 
@@ -186,7 +187,7 @@ const QuizCreation = ({topicParam}: Props) => {
                                     <FormItem>
                                         <FormLabel>Topic</FormLabel>
                                         <FormControl>
-                                            <Input placeholder="Enter a topic..." {...field} className="h-16 text-lg" />
+                                            <Input placeholder="Enter a topic..." {...field} className="text-lg" />
                                         </FormControl>
                                         <FormDescription>
                                             Please provide a topic for your quiz.
