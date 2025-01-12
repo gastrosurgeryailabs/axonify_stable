@@ -23,7 +23,11 @@ const QuizPage = async ({ searchParams }: Props) => {
     const params = await searchParams;
     const topic = typeof params?.topic === 'string' ? params.topic : '';
     
-    return <QuizCreation topicParam={topic} />;
+    return (
+        <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
+            <QuizCreation topicParam={topic} />
+        </div>
+    );
 };
 
 export default QuizPage;

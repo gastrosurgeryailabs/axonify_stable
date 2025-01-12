@@ -16,9 +16,9 @@ export async function POST(req: Request, res: Response) {
         }
 
         const body = await req.json();
-        const { amount, topic, type, targetLanguage } = quizCreationSchema.parse(body);
+        const { amount, topic, type, targetLanguage, prompt } = quizCreationSchema.parse(body);
 
-        console.log("Creating game with:", { amount, topic, type, targetLanguage });
+        console.log("Creating game with:", { amount, topic, type, targetLanguage, prompt });
 
         // First, generate questions outside the transaction
         const questionsUrl = process.env.API_URL ? `${process.env.API_URL}/api/questions` : '/api/questions';
@@ -29,6 +29,7 @@ export async function POST(req: Request, res: Response) {
             topic,
             type,
             targetLanguage,
+            prompt,
         });
 
         console.log("Questions API response:", data);

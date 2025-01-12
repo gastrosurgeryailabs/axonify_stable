@@ -6,9 +6,9 @@ import { Separator } from "./ui/separator";
 
 const Footer = () => {
   return (
-    <footer className="w-full border-t border-zinc-300 py-8 mt-auto">
-      <div className="container max-w-7xl mx-auto px-8">
-        <div className="flex flex-col md:flex-row items-center md:items-center justify-between max-w-6xl mx-auto w-full gap-6 md:gap-4">
+    <footer className="w-full border-t border-zinc-300 py-4 bg-background mt-auto">
+      <div className="container max-w-7xl mx-auto px-4 sm:px-8">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <span className="text-base text-muted-foreground whitespace-nowrap">Axonify by</span>
             <a href="https://axoncare.io/" target="_blank" rel="noopener noreferrer" className="flex items-center">

@@ -124,46 +124,38 @@ export async function strict_output(
   throw new Error(`Failed to generate valid output after ${num_tries} attempts`);
 }
 
-export async function getQuizQuestion(topic: string) {
-  const systemPrompt = "You are a quiz generator. Create multiple-choice questions with short, concise answers. The correct answer should be a single word or very short phrase.";
-  
-  const format = {
-    question: "string",
-    options: ["string", "string", "string", "string"],
-    answer: "string"  // This should be just the correct answer word/phrase
-  };
-
+export async function getQuizQuestion(topic: string, customPrompt: string) {
   const response = await strict_output(
-    systemPrompt,
+    customPrompt,
     `Generate a multiple choice question about ${topic}`,
-    format,
-    "",     // default_category
-    false,  // output_value_only
+    {
+      question: "string",
+      options: ["string", "string", "string", "string"],
+      answer: "string"
+    },
+    "",
+    false,
     "gpt-3.5-turbo",
-    0.7,    // Lower temperature for more focused responses
-    3       // num_tries
+    0.7,
+    3
   );
 
   return response;
 }
 
-export async function getOpenEndedQuestion(topic: string) {
-  const systemPrompt = "You are a quiz generator. Create open-ended questions. The answer must be a single word or very short phrase (maximum 2-3 words). Never provide explanations in the answer.";
-  
-  const format = {
-    question: "string",
-    answer: "string" // Will contain just the word/short phrase
-  };
-
+export async function getOpenEndedQuestion(topic: string, customPrompt: string) {
   const response = await strict_output(
-    systemPrompt,
-    `Generate an open-ended question about ${topic}. The answer must be a single word or very short phrase.`,
-    format,
-    "",     // default_category
-    false,  // output_value_only
+    customPrompt,
+    `Generate an open-ended question about ${topic}`,
+    {
+      question: "string",
+      answer: "string"
+    },
+    "",
+    false,
     "gpt-3.5-turbo",
-    0.5,    // Even lower temperature for more precise responses
-    3       // num_tries
+    0.5,
+    3
   );
 
   return response;

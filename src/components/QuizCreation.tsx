@@ -18,6 +18,7 @@ import LoadingQuestions from './LoadingQuestions';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import {ShareButton }from './ShareButton';
+import { Textarea } from './ui/textarea';
 
 type Props = {
     topicParam: string;
@@ -85,13 +86,14 @@ const QuizCreation = ({topicParam}: Props) => {
     const [showLoader, setShowLoader] = React.useState(false);
     
     const {mutate: getQuestions, isPending} = useMutation({
-        mutationFn: async ({amount, topic, type, targetLanguage}: Input) => {
+        mutationFn: async ({amount, topic, type, targetLanguage, prompt}: Input) => {
             try {
                 const response = await axios.post('/api/game', {
                     amount,
                     topic,
                     type,
                     targetLanguage,
+                    prompt,
                 });
                 if (!response.data || !response.data.gameId) {
                     throw new Error('Invalid response from server');
@@ -129,7 +131,8 @@ const QuizCreation = ({topicParam}: Props) => {
             amount: 3,
             topic: topicParam,
             type: "mcq",
-            targetLanguage: "en"
+            targetLanguage: "en",
+            prompt: "You are a helpful AI that is able to generate questions and answers. Each question should be clear and complete. For MCQ, provide one correct answer and three plausible but incorrect options. For open-ended questions, mark important technical terms with [[term]] syntax."
         }
     });
 
@@ -143,7 +146,7 @@ const QuizCreation = ({topicParam}: Props) => {
     }
 
     return (
-        <div className="absolute -translate-x-1/2 -translate-y-1/2 top-1/2 left-1/2">
+        <div>
             <Card className="w-[400px]">
                 <CardHeader>
                     <CardTitle className="text-2xl font-bold">Quiz Creation</CardTitle>
@@ -164,6 +167,27 @@ const QuizCreation = ({topicParam}: Props) => {
                                         </FormControl>
                                         <FormDescription>
                                             Please provide a topic for your quiz.
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            <FormField
+                                control={form.control}
+                                name="prompt"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Prompt</FormLabel>
+                                        <FormControl>
+                                            <Textarea 
+                                                placeholder="Enter system prompt for question generation..." 
+                                                className="min-h-[100px]"
+                                                {...field} 
+                                            />
+                                        </FormControl>
+                                        <FormDescription>
+                                            Customize your quiz by writing specific instructions for how the questions should be generated.
                                         </FormDescription>
                                         <FormMessage />
                                     </FormItem>
