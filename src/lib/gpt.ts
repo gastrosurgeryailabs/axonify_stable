@@ -4,9 +4,16 @@ if (!process.env.OPENAI_API_KEY) {
   throw new Error('OPENAI_API_KEY is not set in environment variables');
 }
 
-const openai = new OpenAI({
+const defaultOpenAI = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+
+export function getOpenAIClient(apiKey?: string) {
+  if (apiKey) {
+    return new OpenAI({ apiKey });
+  }
+  return defaultOpenAI;
+}
 
 interface OutputFormat {
   [key: string]: string | string[] | OutputFormat;
@@ -21,8 +28,11 @@ export async function strict_output(
   model: string = "gpt-3.5-turbo",
   temperature: number = 1,
   num_tries: number = 3,
-  verbose: boolean = false
+  verbose: boolean = false,
+  apiKey?: string
 ): Promise<any> {
+  const openai = getOpenAIClient(apiKey);
+  console.log("OpenAI client initialized for model:", model);
   const list_input = Array.isArray(user_prompt);
   const dynamic_elements = /<.*?>/.test(JSON.stringify(output_format));
   const list_output = /\[.*?\]/.test(JSON.stringify(output_format));
@@ -42,25 +52,38 @@ export async function strict_output(
         output_format_prompt += `\nGenerate a list of json, one json for each input element.`;
       }
 
-      console.log("Sending request to OpenAI with:", {
+      const messages = [
+        {
+          role: "system" as const,
+          content: system_prompt + output_format_prompt + error_msg + "\nIMPORTANT: For multiple items, wrap them in a JSON array []",
+        },
+        {
+          role: "user" as const,
+          content: Array.isArray(user_prompt) ? user_prompt.join('\n') : user_prompt,
+        },
+      ];
+
+      console.log("Preparing OpenAI request for model:", model);
+      console.log("Request configuration:", {
         model,
-        system_prompt: system_prompt + output_format_prompt + error_msg,
-        user_prompt: Array.isArray(user_prompt) ? user_prompt.join('\n') : user_prompt
+        temperature,
+        messageCount: messages.length,
+        systemPromptLength: messages[0].content.length,
+        userPromptLength: messages[1].content.length
       });
 
       const response = await openai.chat.completions.create({
         model,
         temperature,
-        messages: [
-          {
-            role: "system",
-            content: system_prompt + output_format_prompt + error_msg + "\nIMPORTANT: For multiple items, wrap them in a JSON array []",
-          },
-          {
-            role: "user",
-            content: Array.isArray(user_prompt) ? user_prompt.join('\n') : user_prompt,
-          },
-        ],
+        messages,
+      });
+
+      console.log("OpenAI response received from model:", model);
+      console.log("Response metadata:", {
+        model: response.model, // This will show the actual model used
+        promptTokens: response.usage?.prompt_tokens,
+        completionTokens: response.usage?.completion_tokens,
+        totalTokens: response.usage?.total_tokens
       });
 
       const res = response.choices[0].message?.content;
@@ -68,7 +91,7 @@ export async function strict_output(
         throw new Error("No response content from OpenAI");
       }
 
-      console.log("OpenAI response:", res);
+      console.log("Processing response from model:", model);
 
       try {
         // Try to parse as is first
@@ -124,7 +147,7 @@ export async function strict_output(
   throw new Error(`Failed to generate valid output after ${num_tries} attempts`);
 }
 
-export async function getQuizQuestion(topic: string, customPrompt: string) {
+export async function getQuizQuestion(topic: string, customPrompt: string, model: string = "gpt-3.5-turbo", apiKey?: string) {
   const response = await strict_output(
     customPrompt,
     `Generate a multiple choice question about ${topic}`,
@@ -135,15 +158,17 @@ export async function getQuizQuestion(topic: string, customPrompt: string) {
     },
     "",
     false,
-    "gpt-3.5-turbo",
+    model,
     0.7,
-    3
+    3,
+    false,
+    apiKey
   );
 
   return response;
 }
 
-export async function getOpenEndedQuestion(topic: string, customPrompt: string) {
+export async function getOpenEndedQuestion(topic: string, customPrompt: string, model: string = "gpt-3.5-turbo", apiKey?: string) {
   const response = await strict_output(
     customPrompt,
     `Generate an open-ended question about ${topic}`,
@@ -153,12 +178,14 @@ export async function getOpenEndedQuestion(topic: string, customPrompt: string) 
     },
     "",
     false,
-    "gpt-3.5-turbo",
+    model,
     0.5,
-    3
+    3,
+    false,
+    apiKey
   );
 
   return response;
 }
 
-export default openai;
+export default defaultOpenAI;

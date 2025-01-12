@@ -85,23 +85,46 @@ const QuizCreation = ({topicParam}: Props) => {
     const [finished, setFinished] = React.useState(false);
     const [showLoader, setShowLoader] = React.useState(false);
     
+    const form = useForm<Input>({
+        resolver: zodResolver(quizCreationSchema),
+        defaultValues: {
+            amount: 3,
+            topic: topicParam,
+            type: "mcq",
+            targetLanguage: "en",
+            model: "gpt-3.5-turbo",
+            prompt: "You are a helpful AI that is able to generate questions and answers. Each question should be clear and complete. For MCQ, provide one correct answer and three plausible but incorrect options. For open-ended questions, mark important technical terms with [[term]] syntax."
+        }
+    });
+
     const {mutate: getQuestions, isPending} = useMutation({
-        mutationFn: async ({amount, topic, type, targetLanguage, prompt}: Input) => {
+        mutationFn: async (formData: Input) => {
+            console.log("Mutation starting with model:", formData.model);
             try {
-                const response = await axios.post('/api/game', {
-                    amount,
-                    topic,
-                    type,
-                    targetLanguage,
-                    prompt,
-                });
+                const response = await axios.post('/api/game', formData);
+                console.log("API response:", response.data);
                 if (!response.data || !response.data.gameId) {
                     throw new Error('Invalid response from server');
                 }
                 return response.data;
             } catch (error) {
                 if (axios.isAxiosError(error)) {
-                    throw new Error(error.response?.data?.error || error.message || 'Failed to create quiz');
+                    const errorMessage = error.response?.data?.error;
+                    console.error("API error:", error.response?.data);
+                    
+                    // Check for API key related errors
+                    if (
+                        error.response?.status === 401 ||
+                        error.response?.status === 403 ||
+                        (errorMessage && (
+                            errorMessage.toLowerCase().includes('api key') ||
+                            errorMessage.toLowerCase().includes('authentication')
+                        ))
+                    ) {
+                        throw new Error('Invalid API key. Please check your API key and try again.');
+                    }
+                    
+                    throw new Error(errorMessage || error.message || 'Failed to create quiz');
                 }
                 throw error;
             }
@@ -109,8 +132,8 @@ const QuizCreation = ({topicParam}: Props) => {
         onError: (error: Error) => {
             setShowLoader(false);
             toast({
-                title: "Error creating quiz",
-                description: error.message || "An unexpected error occurred",
+                title: "Error",
+                description: error.message,
                 variant: "destructive",
             });
             console.error("Quiz creation error:", error);
@@ -125,20 +148,20 @@ const QuizCreation = ({topicParam}: Props) => {
         }
     });
 
-    const form = useForm<Input>({
-        resolver: zodResolver(quizCreationSchema),
-        defaultValues: {
-            amount: 3,
-            topic: topicParam,
-            type: "mcq",
-            targetLanguage: "en",
-            prompt: "You are a helpful AI that is able to generate questions and answers. Each question should be clear and complete. For MCQ, provide one correct answer and three plausible but incorrect options. For open-ended questions, mark important technical terms with [[term]] syntax."
-        }
-    });
-
     function onSubmit(input: Input) {
+        console.log("Form submitted with raw input:", input);
+        const formValues = form.getValues();
+        console.log("Form values at submission:", formValues);
+        
+        // Ensure we're using the latest values
+        const submissionData = {
+            ...formValues,
+            model: formValues.model || "gpt-3.5-turbo", // Fallback just in case
+        };
+        
+        console.log("Final submission data:", submissionData);
         setShowLoader(true);
-        getQuestions(input);
+        getQuestions(submissionData);
     }
 
     if (showLoader) {
@@ -147,7 +170,7 @@ const QuizCreation = ({topicParam}: Props) => {
 
     return (
         <div>
-            <Card className="w-[400px]">
+            <Card className="w-[400px] md:w-[600px] lg:w-[800px]">
                 <CardHeader>
                     <CardTitle className="text-2xl font-bold">Quiz Creation</CardTitle>
                     <CardDescription>Choose a topic</CardDescription>
@@ -163,7 +186,7 @@ const QuizCreation = ({topicParam}: Props) => {
                                     <FormItem>
                                         <FormLabel>Topic</FormLabel>
                                         <FormControl>
-                                            <Input placeholder="Enter a topic..." {...field} />
+                                            <Input placeholder="Enter a topic..." {...field} className="h-16 text-lg" />
                                         </FormControl>
                                         <FormDescription>
                                             Please provide a topic for your quiz.
@@ -178,7 +201,7 @@ const QuizCreation = ({topicParam}: Props) => {
                                 name="prompt"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Prompt</FormLabel>
+                                        <FormLabel>Quiz Prompt</FormLabel>
                                         <FormControl>
                                             <Textarea 
                                                 placeholder="Enter system prompt for question generation..." 
@@ -272,6 +295,59 @@ const QuizCreation = ({topicParam}: Props) => {
                                                 <BookOpen className="w-4 h-4 mr-2" /> Open Ended
                                             </Button>
                                         </div>
+                                    </FormItem>
+                                )}
+                            />
+
+                            <FormField
+                                control={form.control}
+                                name="model"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Model</FormLabel>
+                                        <Select 
+                                            value={field.value}
+                                            onValueChange={(value) => {
+                                                field.onChange(value);
+                                            }} 
+                                        >
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select a model" />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
+                                                <SelectItem value="gpt-4">GPT-4</SelectItem>
+                                                <SelectItem value="gpt-4-turbo-preview">GPT-4 Turbo</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <FormDescription>
+                                            Choose the model to generate your quiz questions. More advanced models may provide better results but could be slower.
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            <FormField
+                                control={form.control}
+                                name="apiKey"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>API Key</FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                type="password"
+                                                placeholder="Enter your API key..."
+                                                {...field}
+                                                required
+                                            />
+                                        </FormControl>
+                                        <FormDescription>
+                                            Please provide your API key to generate quiz questions.
+                                        </FormDescription>
+                                        <FormMessage />
                                     </FormItem>
                                 )}
                             />

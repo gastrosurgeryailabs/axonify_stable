@@ -30,6 +30,10 @@ const MCQ = ({game}: Props) => {
     const {toast} = useToast()
     const [now, setNow ] = React.useState<Date>(new Date());
 
+    const cleanTechnicalTerms = React.useCallback((text: string) => {
+        return text.replace(/\[\[(.*?)\]\]/g, '$1');
+    }, []);
+
     React.useEffect(()=>{
         const interval = setInterval(()=>{
             if (!hasEnded) {
@@ -155,7 +159,7 @@ const MCQ = ({game}: Props) => {
                             </div>
                         </CardTitle>
                         <CardDescription className='flex-grow text-lg'>
-                            {currentQuestion.question}
+                            {cleanTechnicalTerms(currentQuestion.question)}
                         </CardDescription>
                     </CardHeader>
                 </Card>
@@ -164,16 +168,18 @@ const MCQ = ({game}: Props) => {
                     {options.map((option, index) => {
                         return (
                             <Button key={index}
-                                className='justify-start w-full py-8'
+                                className='justify-start w-full py-8 px-4'
                                 variant={selectedChoice === index ? "default" : "secondary"}
                                 onClick={()=> {
                                     setSelectedChoice(index);
                                 }}>
-                                <div className="flex items-center justify-start">
-                                    <div className="p-2 px-3 mr-5 border rounded-md">
+                                <div className="flex items-start w-full gap-4">
+                                    <div className="p-2 px-3 border rounded-md shrink-0">
                                         {index + 1}
                                     </div>
-                                    <div className="text-start">{option}</div>
+                                    <div className="text-start break-words min-w-0 flex-1 whitespace-pre-wrap">
+                                        {cleanTechnicalTerms(option)}
+                                    </div>
                                 </div>
                             </Button>
                         );
