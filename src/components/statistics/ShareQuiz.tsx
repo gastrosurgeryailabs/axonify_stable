@@ -29,7 +29,7 @@ const ShareQuiz = ({ game }: Props) => {
         `scored ${Math.round((game.questions.filter(q => q.isCorrect).length / game.questions.length) * 100)}%` : 
         'completed the quiz'
     
-    const message = `Hey! Check out this awesome quiz on AxonCare!
+    const message = `Hey! Check out this awesome quiz on Axonify!
 
 Topic: ${game.topic}
 Type: ${quizType} Quiz
