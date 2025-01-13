@@ -155,10 +155,26 @@ export async function POST(req: Request, res: Response) {
                         { status: 401 }
                     );
                 }
+
+                // If it's a rate limit error, return 429
+                if (status === 429) {
+                    return NextResponse.json(
+                        { error: apiError || "We're experiencing high traffic. Please try again in a few seconds." },
+                        { status: 429 }
+                    );
+                }
+
+                // If it's a server overload error, return 503
+                if (status === 503 || status === 502) {
+                    return NextResponse.json(
+                        { error: apiError || "Our servers are currently busy. Please try again in a moment." },
+                        { status: 503 }
+                    );
+                }
                 
-                // For other API errors, return with the original status
+                // For other API errors, return with the original status and a user-friendly message
                 return NextResponse.json(
-                    { error: apiError || "Failed to generate questions" },
+                    { error: apiError || "Unable to generate quiz right now. Please try again in a few moments." },
                     { status }
                 );
             }

@@ -100,10 +100,35 @@ export const POST = async (req: Request, res: Response) => {
                     { status: 401 }
                 );
             }
+
+            // Check for rate limiting
+            if (
+                errorCode === 'rate_limit_exceeded' ||
+                errorType === 'rate_limit_error' ||
+                error.response?.status === 429
+            ) {
+                return NextResponse.json(
+                    { error: "We're experiencing high traffic. Please try again in a few seconds." },
+                    { status: 429 }
+                );
+            }
+
+            // Check for server overload
+            if (
+                errorCode === 'server_error' ||
+                errorType === 'server_error' ||
+                error.response?.status === 503 ||
+                error.response?.status === 502
+            ) {
+                return NextResponse.json(
+                    { error: "Our servers are currently busy. Please try again in a moment." },
+                    { status: 503 }
+                );
+            }
             
-            // For other OpenAI errors, return a 400 status
+            // For other OpenAI errors, return a 400 status with a user-friendly message
             return NextResponse.json(
-                { error: errorMessage || "Failed to generate questions. Please try again." },
+                { error: "Unable to generate questions right now. Please try again in a few moments." },
                 { status: 400 }
             );
         }

@@ -125,8 +125,13 @@ const QuizCreation = ({topicParam}: Props) => {
                     ) {
                         throw new Error('Invalid API key. Please check your API key and try again.');
                     }
+
+                    // Check for rate limiting or server overload
+                    if (error.response?.status === 429 || error.response?.status === 503) {
+                        throw new Error('We\'re experiencing high traffic. Please try again in a few seconds.');
+                    }
                     
-                    throw new Error(errorMessage || error.message || 'Failed to create quiz');
+                    throw new Error(errorMessage || 'Failed to create quiz. Please try again in a few moments.');
                 }
                 throw error;
             }
@@ -134,9 +139,10 @@ const QuizCreation = ({topicParam}: Props) => {
         onError: (error: Error) => {
             setShowLoader(false);
             toast({
-                title: "Error",
+                title: "Quiz Generation Failed",
                 description: error.message,
                 variant: "destructive",
+                duration: 5000,
             });
             console.error("Quiz creation error:", error);
         },
