@@ -7,7 +7,8 @@ export const quizCreationSchema = z.object({
     targetLanguage: z.string().default('en'), // Default to English if not specified
     prompt: z.string().min(10, {message: "Prompt must be at least 10 characters long"}).max(2000),
     model: z.enum(['gpt-3.5-turbo', 'gpt-4', 'gpt-4-turbo-preview']).default('gpt-3.5-turbo'),
-    apiKey: z.string().min(1, {message: "API key is required"})
+    apiKey: z.string().optional(),
+    completionMessage: z.string().optional().default("Great job on completing the quiz!")
 });
 
 export const checkAnswerSchema = z.object({

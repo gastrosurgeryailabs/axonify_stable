@@ -93,8 +93,9 @@ const QuizCreation = ({topicParam}: Props) => {
             type: "mcq",
             targetLanguage: "en",
             model: "gpt-3.5-turbo",
-            prompt: "You are a helpful AI that is able to generate questions and answers. Each question should be clear and complete. For MCQ, provide one correct answer and three plausible but incorrect options. For open-ended questions, mark important technical terms with [[term]] syntax.",
-            apiKey: ""
+            prompt: "Generate questions that are clear and engaging. For technical topics, ensure explanations are beginner-friendly. Include real-world examples where applicable.",
+            apiKey: "",
+            completionMessage: "Great job on completing the quiz!"
         }
     });
 
@@ -220,6 +221,26 @@ const QuizCreation = ({topicParam}: Props) => {
 
                             <FormField
                                 control={form.control}
+                                name="completionMessage"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Completion Message</FormLabel>
+                                        <FormControl>
+                                            <Input 
+                                                placeholder="Enter a message to show when the quiz is completed..." 
+                                                {...field} 
+                                            />
+                                        </FormControl>
+                                        <FormDescription>
+                                            This message will be shown to the user when they complete the quiz.
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            <FormField
+                                control={form.control}
                                 name="amount"
                                 render={({ field }) => (
                                     <FormItem>
@@ -336,17 +357,16 @@ const QuizCreation = ({topicParam}: Props) => {
                                 name="apiKey"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>API Key</FormLabel>
+                                        <FormLabel>API Key (Optional)</FormLabel>
                                         <FormControl>
                                             <Input
                                                 type="password"
                                                 placeholder="Enter your API key..."
                                                 {...field}
-                                                required
                                             />
                                         </FormControl>
                                         <FormDescription>
-                                            Please provide your API key to generate quiz questions.
+                                            Optionally provide your own API key. Leave empty to use the default key.
                                         </FormDescription>
                                         <FormMessage />
                                     </FormItem>

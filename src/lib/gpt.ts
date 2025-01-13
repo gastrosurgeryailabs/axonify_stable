@@ -147,14 +147,36 @@ export async function strict_output(
   throw new Error(`Failed to generate valid output after ${num_tries} attempts`);
 }
 
+const SYSTEM_QUIZ_PROMPT = `You are a helpful AI that generates high-quality quiz questions and answers. Follow these rules strictly:
+
+1. Each question must be clear, complete, and engaging
+2. For MCQ questions:
+   - The first option in the 'options' array MUST BE the correct answer
+   - Follow it with exactly three UNIQUE incorrect options
+   - Never repeat the correct answer in the incorrect options
+   - Each option must be completely distinct from others
+   - Make incorrect options plausible but clearly wrong
+   - Do not use "All of the above" or "None of the above" as options
+3. For open-ended questions:
+   - Mark important technical terms with [[term]] syntax
+   - Ensure answers are comprehensive but concise
+
+Remember: The correct answer should only appear ONCE in the options array, always as the first item.`;
+
 export async function getQuizQuestion(topic: string, customPrompt: string, model: string = "gpt-3.5-turbo", apiKey?: string) {
   const response = await strict_output(
-    customPrompt,
-    `Generate a multiple choice question about ${topic}`,
+    SYSTEM_QUIZ_PROMPT + "\n" + customPrompt,
+    `Generate a multiple choice question about ${topic}. The response must follow this format strictly:
+1. The 'question' should be your question text
+2. The 'answer' should be the correct answer
+3. The 'options' array must contain EXACTLY 4 items in this order:
+   - First: the correct answer
+   - Then: 3 different incorrect options that are not duplicates
+The options will be shuffled later, so always put the correct answer first.`,
     {
       question: "string",
-      options: ["string", "string", "string", "string"],
-      answer: "string"
+      answer: "string",
+      options: ["string", "string", "string", "string"]
     },
     "",
     false,
@@ -165,12 +187,18 @@ export async function getQuizQuestion(topic: string, customPrompt: string, model
     apiKey
   );
 
-  return response;
+  // Ensure answer is correct and shuffle options
+  const shuffledResponse = {
+    ...response,
+    options: [...response.options].sort(() => Math.random() - 0.5)
+  };
+
+  return shuffledResponse;
 }
 
 export async function getOpenEndedQuestion(topic: string, customPrompt: string, model: string = "gpt-3.5-turbo", apiKey?: string) {
   const response = await strict_output(
-    customPrompt,
+    SYSTEM_QUIZ_PROMPT + "\n" + customPrompt,
     `Generate an open-ended question about ${topic}`,
     {
       question: "string",

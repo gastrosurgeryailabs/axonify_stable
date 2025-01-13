@@ -24,15 +24,16 @@ const MCQPage = async ({ params }: Props) => {
             questions: {
                 select: {
                     id: true,
-                    question:true,
-                    options:true,
+                    question: true,
+                    options: true,
                 }
             }
         }
     });
-    if (!game || game.gameType==='open_ended') {
+    if (!game || game.gameType === 'open_ended') {
         return redirect('/quiz')
     }
+    
     return <MCQ game={game}/>
 }
 

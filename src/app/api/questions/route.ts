@@ -48,11 +48,9 @@ export const POST = async (req: Request, res: Response) => {
                         `You are to generate a random easy mcq question about ${topic}`
                     ),
                     {
-                        question: 'question',
-                        answer: 'answer with max length of 15 words',
-                        option1: "1st option with max length of 15 words",
-                        option2: "2nd option with max length of 15 words",
-                        option3: "3rd option with max length of 15 words",
+                        question: "string",
+                        answer: "string",
+                        incorrectAnswers: ["string", "string", "string"]
                     },
                     "",
                     false,
@@ -62,6 +60,22 @@ export const POST = async (req: Request, res: Response) => {
                     false,
                     apiKey
                 );
+
+                // Transform the response to match the expected format
+                questions = questions.map((q: any) => {
+                    // Ensure we have the correct number of incorrect answers
+                    if (!Array.isArray(q.incorrectAnswers) || q.incorrectAnswers.length !== 3) {
+                        throw new Error("Invalid incorrect answers format");
+                    }
+
+                    return {
+                        question: q.question,
+                        answer: q.answer,
+                        option1: q.incorrectAnswers[0],
+                        option2: q.incorrectAnswers[1],
+                        option3: q.incorrectAnswers[2]
+                    };
+                });
             }
         } catch (error: any) {
             console.error("OpenAI API Error:", error);

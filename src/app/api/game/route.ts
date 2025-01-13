@@ -16,7 +16,7 @@ export async function POST(req: Request, res: Response) {
         }
 
         const body = await req.json();
-        const { amount, topic, type, targetLanguage, prompt, model, apiKey } = quizCreationSchema.parse(body);
+        const { amount, topic, type, targetLanguage, prompt, model, apiKey, completionMessage } = quizCreationSchema.parse(body);
 
         console.log("Game API received model:", model);
         console.log("Creating game with:", { amount, topic, type, targetLanguage, prompt, model });
@@ -51,6 +51,7 @@ export async function POST(req: Request, res: Response) {
                         gameType: type,
                         timeStarted: new Date(),
                         userId: session.user.id,
+                        completionMessage,
                     },
                 });
 
@@ -74,17 +75,28 @@ export async function POST(req: Request, res: Response) {
 
                 if (type === "mcq") {
                     const manyData = data.questions.map((question: any) => {
-                        const options = [
+                        // Create array of all options including the answer
+                        const allOptions = [
                             question.answer,
                             question.option1,
                             question.option2,
                             question.option3
-                        ].sort(() => Math.random() - 0.5);
+                        ];
+
+                        // Check for duplicates
+                        const uniqueOptions = new Set(allOptions);
+                        if (uniqueOptions.size !== allOptions.length) {
+                            console.error("Duplicate options found");
+                            throw new Error("Duplicate options detected in question");
+                        }
+
+                        // Shuffle the options
+                        const shuffledOptions = allOptions.sort(() => Math.random() - 0.5);
 
                         return {
                             question: question.question,
                             answer: question.answer,
-                            options: JSON.stringify(options),
+                            options: JSON.stringify(shuffledOptions),
                             gameId: newGame.id,
                             questionType: type,
                         };
