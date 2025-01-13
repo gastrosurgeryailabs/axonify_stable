@@ -23,21 +23,21 @@ export default async function SignIn({ searchParams }: Props) {
                     <div className="flex flex-col items-center justify-center mb-4">
                         <Image
                             src="/logo.png"
-                            alt="Axonify Logo"
+                            alt="AxonCare Logo"
                             width={63}
                             height={50}
                             className="w-29 h-18"
                         />
                         <div className="flex flex-col items-center">
                             <p className='text-2xl font-bold tracking-wide text-[#0A2472] dark:text-[#1E40AF]'>
-                                AXONIFY
+                                AxonCare
                             </p>
                             <p className="text-[10px] tracking-[0.2em] text-gray-500 dark:text-gray-400 font-light -mt-0.5">
-                                YOUR HEALTH GUARDIANS
+                                Your Health Guardians
                             </p>
                         </div>
                     </div>
-                    <CardTitle className="text-2xl text-center">Welcome to Axonify</CardTitle>
+                    <CardTitle className="text-2xl text-center">Welcome to AxonCare</CardTitle>
                     <CardDescription className="text-center">
                         Sign in to access your quizzes and track your progress
                     </CardDescription>

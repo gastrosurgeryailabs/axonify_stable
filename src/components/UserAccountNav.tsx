@@ -34,7 +34,7 @@ const UserAccountNav = ({user}: Props) => {
           </div>
           <DropdownMenuSeparator />
           <DropdownMenuItem asChild>
-            <Link href='/'>Axonic Health</Link>
+            <Link href='/'>AxonCare</Link>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem 

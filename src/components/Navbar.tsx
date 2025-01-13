@@ -17,17 +17,17 @@ const Navbar= async (props: Props) => {
         <Link href="/" className="flex items-center gap-2">
           <Image
             src="/logo.png"
-            alt="Axonify Logo"
+            alt="AxonCare Logo"
             width={52}
             height={42}
             className="w-22 h-10"
           />
           <div className="flex flex-col">
             <p className='text-2xl font-bold tracking-wide text-blue-900 dark:text-blue-700'>
-              AXONIFY
+              AxonCare
             </p>
             <p className="text-[10px] tracking-[0.2em] text-gray-500 dark:text-gray-400 font-light -mt-0.5">
-              YOUR HEALTH GUARDIANS
+              Your Health Guardians
             </p>
           </div>
         </Link>

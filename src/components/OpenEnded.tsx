@@ -151,7 +151,7 @@ const OpenEnded = ({game}: Props) => {
 
                         <a 
                             href={`https://wa.me/?text=${encodeURIComponent(
-                                `Hey! Check out this awesome quiz on Axonify!\n\nTopic: ${game.topic}\nType: Open Ended Quiz\nQuestions: ${game.questions.length}\n\nI just completed the quiz with ${averagePercentage.toFixed(1)}% accuracy! Can you beat my score?\n\nTry now: ${process.env.NEXT_PUBLIC_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '')}/play/open-ended/${game.id}`
+                                `Hey! Check out this awesome quiz on AxonCare!\n\nTopic: ${game.topic}\nType: Open Ended Quiz\nQuestions: ${game.questions.length}\n\nI just completed the quiz with ${averagePercentage.toFixed(1)}% accuracy! Can you beat my score?\n\nTry it out: ${process.env.NEXT_PUBLIC_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '')}/play/open-ended/${game.id}`
                             )}`}
                             target="_blank"
                             rel="noopener noreferrer"
@@ -169,23 +169,23 @@ const OpenEnded = ({game}: Props) => {
                     <div className="flex flex-col items-center justify-center gap-2">
                         <Image
                             src="/logo.png"
-                            alt="Axonify Logo"
+                            alt="AxonCare Logo"
                             width={63}
                             height={50}
                             className="w-29 h-18"
                         />
                         <div className="flex flex-col items-center">
                             <p className='text-2xl font-bold tracking-wide text-[#0A2472] dark:text-[#1E40AF]'>
-                                AXONIC
+                                AxonCare
                             </p>
                             <p className="text-[10px] tracking-[0.2em] text-gray-500 dark:text-gray-400 font-light -mt-0.5">
-                                HEALTH • CARE • LIVE
+                                Health • Care • Live
                             </p>
                         </div>
 
                         <div className="mt-3 text-center">
                             <p className="text-sm text-muted-foreground leading-relaxed max-w-md">
-                                AxonCare, a service brand by Axonic, is a global healthcare network that connects doctors and patients worldwide through cutting-edge technology solutions.
+                                AxonCare, a service brand by AxonCare, is a global healthcare network that connects doctors and patients worldwide through cutting-edge technology solutions.
                             </p>
                             <a 
                                 href="https://axoncare.io/" 

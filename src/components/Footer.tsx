@@ -10,12 +10,11 @@ const Footer = () => {
       <div className="container max-w-7xl mx-auto px-4 sm:px-8">
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center">
-            <span className="text-base text-muted-foreground whitespace-nowrap">Axonify by</span>
-            <a href="https://axoncare.io/" target="_blank" rel="noopener noreferrer" className="flex items-center -ml-[2px]">
+            <a href="https://axoncare.io/" target="_blank" rel="noopener noreferrer" className="flex items-center">
               <div className="relative w-[72px] h-[24px] -mr-[2px]">
                 <Image
                   src="/logo.png"
-                  alt="Axonify Logo"
+                  alt="AxonCare Logo"
                   fill
                   sizes="72px"
                   className="object-contain"
@@ -30,10 +29,10 @@ const Footer = () => {
             <Button variant="ghost" size="sm" className="gap-2">
               <Mail className="h-4 w-4" />
               <a
-                href="mailto:info@axonichealth.com"
+                href="mailto:info@axoncare.com"
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
               >
-                info@axonichealth.com
+                info@axoncare.com
               </a>
             </Button>
           </div>

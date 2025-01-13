@@ -13,9 +13,9 @@ export default async function Home() {
   <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
     <Card className="w-[300px]">
     <CardHeader>
-      <CardTitle>Welcome to Axonify! ✨</CardTitle>
+      <CardTitle>Welcome to AxonCare! ✨</CardTitle>
       <CardDescription>
-        <p>Axonify is a quiz app where you pick your favorite topics, set the number of questions, choose your language, and dive into exciting challenges!</p>
+        <p>Welcome to AxonCare's Knowledge Assessment Platform. Enhance your understanding, track your progress, and challenge yourself through our comprehensive assessment system.</p>
       </CardDescription>
     </CardHeader>
     <CardContent>

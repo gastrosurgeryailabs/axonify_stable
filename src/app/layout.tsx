@@ -10,7 +10,7 @@ import { Toaster } from "@/components/ui/toaster";
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: "Axonify",
+  title: "AxonCare",
   description: "Your health guardians",
   icons: {
     icon: [

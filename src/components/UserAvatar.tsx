@@ -64,7 +64,7 @@ const UserAvatar = ({user}: Props) => {
                     className="text-sm font-semibold text-primary dark:text-white/90 tracking-tight hover:text-primary/80 dark:hover:text-white/80"
                     onClick={() => window.location.href = '/'}
                 >
-                    Axonic Care
+                    AxonCare
                 </DropdownMenuItem>
                 <DropdownMenuItem 
                     className="text-red-600 dark:text-red-400 cursor-pointer mt-1 flex items-center gap-2"
