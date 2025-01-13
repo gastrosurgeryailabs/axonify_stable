@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { getAuthSession } from '@/lib/nextauth';
 import { redirect } from 'next/navigation';
 import React from 'react'
+import { Prisma } from '@prisma/client';
 
 type Props = {
     params: Promise<{
@@ -10,31 +11,86 @@ type Props = {
     }>
 }
 
+async function cloneGame(gameId: string, userId: string) {
+    const originalGame = await prisma.game.findUnique({
+        where: { id: gameId },
+        include: { questions: true }
+    });
+
+    if (!originalGame) return null;
+
+    // Use a transaction to ensure data consistency
+    return await prisma.$transaction(async (tx) => {
+        const clonedGame = await tx.game.create({
+            data: {
+                topic: originalGame.topic,
+                gameType: originalGame.gameType,
+                timeStarted: new Date(),
+                userId: userId,
+                completionMessage: originalGame.completionMessage
+            }
+        });
+
+        const questionData = originalGame.questions.map(q => ({
+            question: q.question,
+            answer: q.answer,
+            options: q.options as Prisma.InputJsonValue,
+            gameId: clonedGame.id,
+            questionType: originalGame.gameType
+        }));
+
+        await tx.question.createMany({
+            data: questionData
+        });
+
+        return clonedGame;
+    });
+}
+
 const MCQPage = async ({ params }: Props) => {
     const { gameId } = await params;
     const session = await getAuthSession();
+    
     if(!session?.user){
-        return redirect('/');
+        const callbackUrl = `/play/mcq/${gameId}`;
+        return redirect(`/auth/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`);
     }
-    const game = await prisma.game.findUnique({
-        where: {
-            id: gameId
-        },
-        include: {
-            questions: {
-                select: {
-                    id: true,
-                    question: true,
-                    options: true,
-                }
-            }
-        }
+
+    let game = await prisma.game.findUnique({
+        where: { id: gameId },
+        include: { questions: true }
     });
+
     if (!game || game.gameType === 'open_ended') {
         return redirect('/quiz')
     }
+
+    // If this is not the user's game, create a new instance for them
+    if (game.userId !== session.user.id) {
+        const clonedGame = await cloneGame(gameId, session.user.id);
+        if (!clonedGame) {
+            return redirect('/quiz');
+        }
+        game = await prisma.game.findUnique({
+            where: { id: clonedGame.id },
+            include: { questions: true }
+        });
+        if (!game) {
+            return redirect('/quiz');
+        }
+    }
     
-    return <MCQ game={game}/>
+    // Filter the game data for the MCQ component
+    const filteredGame = {
+        ...game,
+        questions: game.questions.map(q => ({
+            id: q.id,
+            question: q.question,
+            options: q.options,
+        }))
+    };
+    
+    return <MCQ game={filteredGame}/>
 }
 
 export default MCQPage;

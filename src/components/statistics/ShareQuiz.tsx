@@ -17,10 +17,12 @@ const ShareQuiz = ({ game }: Props) => {
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
-            setShareLink(`${window.location.origin}/quiz?topic=${encodeURIComponent(game.topic)}`)
+            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || window.location.origin;
+            const gameUrl = `${baseUrl}/play/${game.gameType === 'mcq' ? 'mcq' : 'open-ended'}/${game.id}`
+            setShareLink(gameUrl)
             setIsMobile(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent))
         }
-    }, [game.topic])
+    }, [game.id, game.gameType])
 
     const quizType = game.gameType === 'mcq' ? 'Multiple Choice' : 'Open Ended'
     const accuracy = game.gameType === 'mcq' ? 

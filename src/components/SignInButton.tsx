@@ -6,15 +6,18 @@ import { signIn } from 'next-auth/react';
 
 type Props = {
   text: string;
+  callbackUrl?: string;
 };
 
-const SignInButton = ({ text }: Props) => {
+const SignInButton = ({ text, callbackUrl }: Props) => {
   return (
     <Button 
       onClick={() => {
-        signIn('google').catch(console.error);
+        signIn('google', {
+          callbackUrl: callbackUrl || '/dashboard'
+        }).catch(console.error);
       }}
-      >
+    >
       {text}
     </Button>
   );

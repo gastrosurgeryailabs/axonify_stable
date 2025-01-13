@@ -3,7 +3,7 @@
 import { cn, formatTimeDelta } from '@/lib/utils';
 import { Game, Question } from '@prisma/client'
 import { differenceInSeconds } from 'date-fns';
-import { BarChart, ChevronRight, Loader2, Timer } from 'lucide-react';
+import { BarChart, ChevronRight, Loader2 } from 'lucide-react';
 import React from 'react'
 import { Card, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button, buttonVariants } from './ui/button';
@@ -16,6 +16,7 @@ import BlankAnswerInput from './BlankAnswerInput';
 import Link from 'next/link';
 import { playSound } from '@/lib/sounds';
 import TopicImage from './TopicImage';
+import GameTimer from './GameTimer';
 import Image from 'next/image';
 
 type Props = {
@@ -30,23 +31,11 @@ const OpenEnded = ({game}: Props) => {
     const [hasEnded, setHasEnded] = React.useState<boolean>(false);
     const [averagePercentage, setAveragePercentage] = React.useState(0);
     const {toast} = useToast();
-    const [now, setNow] = React.useState<Date>(new Date());
     const [blankAnswer, setBlankAnswer] = React.useState<string>("");
 
     const currentQuestion = React.useMemo(() => {
         return game.questions[questionIndex];
     }, [questionIndex, game.questions]);
-
-    React.useEffect(() => {
-        const interval = setInterval(() => {
-            if (!hasEnded) {
-                setNow(new Date());
-            }
-        }, 1000);
-        return () => {
-            clearInterval(interval);
-        };
-    }, [hasEnded]);
 
     const {mutate: endGame} = useMutation({
         mutationFn: async () => {
@@ -139,7 +128,7 @@ const OpenEnded = ({game}: Props) => {
                     <CardHeader className="pb-2">
                         <CardTitle>Quiz Completed! 🎉</CardTitle>
                         <CardDescription>
-                            You completed in {formatTimeDelta(differenceInSeconds(now, game.timeStarted))}
+                            You completed in {formatTimeDelta(differenceInSeconds(new Date(), game.timeStarted))}
                         </CardDescription>
                     </CardHeader>
                     <div className="flex flex-col gap-4 mt-4">
@@ -150,7 +139,7 @@ const OpenEnded = ({game}: Props) => {
                             View Statistics
                             <BarChart className='w-4 h-4 ml-2'/>
                         </Link>
-                        
+
                         <div className="relative">
                             <div className="absolute inset-0 flex items-center">
                                 <span className="w-full border-t" />
@@ -162,7 +151,7 @@ const OpenEnded = ({game}: Props) => {
 
                         <a 
                             href={`https://wa.me/?text=${encodeURIComponent(
-                                `Hey! Check out this awesome quiz on Axonify!\n\nTopic: ${game.topic}\nType: Open Ended Quiz\nQuestions: ${game.questions.length}\n\nI just completed the quiz with ${averagePercentage.toFixed(1)}% accuracy! Can you beat my score?\n\nTry now: ${typeof window !== 'undefined' ? window.location.origin : ''}/quiz?topic=${encodeURIComponent(game.topic)}`
+                                `Hey! Check out this awesome quiz on Axonify!\n\nTopic: ${game.topic}\nType: Open Ended Quiz\nQuestions: ${game.questions.length}\n\nI just completed the quiz with ${averagePercentage.toFixed(1)}% accuracy! Can you beat my score?\n\nTry now: ${process.env.NEXT_PUBLIC_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '')}/play/open-ended/${game.id}`
                             )}`}
                             target="_blank"
                             rel="noopener noreferrer"
@@ -206,7 +195,7 @@ const OpenEnded = ({game}: Props) => {
                             >
                                 Visit AxonCare
                                 <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                                 </svg>
                             </a>
                         </div>
@@ -225,10 +214,7 @@ const OpenEnded = ({game}: Props) => {
                             <span className='text-slate-400'>Topic</span> &nbsp;
                             <span className='px-2 py-1 text-white rounded-lg bg-slate-800'>{game.topic}</span>
                         </p>
-                        <div className='flex self-start mt-3 text-slate-400'>
-                            <Timer className='mr-2' />
-                            {formatTimeDelta(differenceInSeconds(now, game.timeStarted))}
-                        </div>
+                        <GameTimer gameStarted={game.timeStarted} />
                     </div>
                     <div className="flex items-center font-semibold mt-4 sm:mt-0">
                         Average Accuracy: {averagePercentage.toFixed(1)}%
@@ -268,6 +254,6 @@ const OpenEnded = ({game}: Props) => {
             </div>
         </div>
     );
-};
+}
 
 export default OpenEnded;

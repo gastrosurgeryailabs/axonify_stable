@@ -9,19 +9,20 @@ const Footer = () => {
     <footer className="w-full border-t border-zinc-300 py-4 bg-background mt-auto">
       <div className="container max-w-7xl mx-auto px-4 sm:px-8">
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center">
             <span className="text-base text-muted-foreground whitespace-nowrap">Axonify by</span>
-            <a href="https://axoncare.io/" target="_blank" rel="noopener noreferrer" className="flex items-center">
-              <div className="relative w-[120px] h-[40px]">
+            <a href="https://axoncare.io/" target="_blank" rel="noopener noreferrer" className="flex items-center -ml-[2px]">
+              <div className="relative w-[72px] h-[24px] -mr-[2px]">
                 <Image
-                  src="/logo.webp"
+                  src="/logo.png"
                   alt="Axonify Logo"
                   fill
-                  sizes="120px"
+                  sizes="72px"
                   className="object-contain"
                   loading="lazy"
                 />
               </div>
+              <span className="text-base font-semibold text-blue-900 dark:text-blue-700">AxonCare</span>
             </a>
           </div>
 
