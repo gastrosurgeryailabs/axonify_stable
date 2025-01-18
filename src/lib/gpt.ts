@@ -151,15 +151,20 @@ export const SYSTEM_QUIZ_PROMPT = `You are a helpful AI that generates high-qual
 
 1. Each question must be clear, complete, and engaging
 2. For MCQ questions:
+   - When scenario-based questions are requested, create a detailed real-world scenario or case study
+   - Present the scenario first, followed by a clear question
+   - Make scenarios relevant and realistic to the topic
    - The first option in the 'options' array MUST BE the correct answer
    - Follow it with exactly three UNIQUE incorrect options
    - Never repeat the correct answer in the incorrect options
    - Each option must be completely distinct from others
    - Make incorrect options plausible but clearly wrong
    - Do not use "All of the above" or "None of the above" as options
+   - For scenario questions, ensure options logically follow from the scenario
 3. For open-ended questions:
    - Mark important technical terms with [[term]] syntax
    - Ensure answers are comprehensive but concise
+   - When scenarios are requested, include relevant context in the question
 
 Remember: The correct answer should only appear ONCE in the options array, always as the first item.`;
 

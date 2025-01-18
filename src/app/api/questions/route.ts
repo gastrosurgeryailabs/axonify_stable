@@ -53,12 +53,12 @@ export const POST = async (req: Request, res: Response) => {
                 questions = await strict_output(
                     fullPrompt,
                     new Array(amount).fill(
-                        `Generate a multiple choice question about ${topic}`
+                        `Generate a detailed multiple choice question about ${topic}. If the custom prompt requests scenario-based questions, create a real-world scenario or case study before presenting the question. Make the question engaging and thought-provoking.`
                     ),
                     {
-                        question: "string",
-                        answer: "string",
-                        incorrectAnswers: ["string", "string", "string"]
+                        question: "detailed question text, including any scenario or context if applicable",
+                        answer: "correct answer with explanation",
+                        incorrectAnswers: ["plausible incorrect answer 1", "plausible incorrect answer 2", "plausible incorrect answer 3"]
                     },
                     "",
                     false,
@@ -78,7 +78,7 @@ export const POST = async (req: Request, res: Response) => {
 
                     return {
                         question: q.question,
-                        answer: q.answer,
+                        answer: q.answer.split(" with explanation:")[0], // Extract just the answer part
                         option1: q.incorrectAnswers[0],
                         option2: q.incorrectAnswers[1],
                         option3: q.incorrectAnswers[2]
