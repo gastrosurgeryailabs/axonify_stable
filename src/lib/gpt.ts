@@ -147,7 +147,7 @@ export async function strict_output(
   throw new Error(`Failed to generate valid output after ${num_tries} attempts`);
 }
 
-const SYSTEM_QUIZ_PROMPT = `You are a helpful AI that generates high-quality quiz questions and answers. Follow these rules strictly:
+export const SYSTEM_QUIZ_PROMPT = `You are a helpful AI that generates high-quality quiz questions and answers. Follow these rules strictly:
 
 1. Each question must be clear, complete, and engaging
 2. For MCQ questions:

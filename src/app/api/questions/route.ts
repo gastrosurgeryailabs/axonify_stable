@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { quizCreationSchema } from "@/schemas/form/quiz";
 import { ZodError } from "zod";
-import { strict_output } from "@/lib/gpt";
+import { strict_output, SYSTEM_QUIZ_PROMPT } from "@/lib/gpt";
 import { translateQuizContent } from "@/lib/translation";
 
 // POST /api/questions
@@ -10,17 +10,24 @@ export const POST = async (req: Request, res: Response) => {
         const body = await req.json();
         const {amount, topic, type, targetLanguage, prompt, model, apiKey} = quizCreationSchema.parse(body);
         
-        console.log("Questions API received request with model:", model);
+        console.log("Questions API received request:", {
+            topic,
+            type,
+            prompt,
+            model,
+            amount
+        });
         
         let questions: any;
         
         try {
             if (type === 'open_ended') {
-                console.log("Generating open-ended questions using model:", model);
+                const fullPrompt = SYSTEM_QUIZ_PROMPT + "\n" + prompt;
+                console.log("Full prompt for open-ended questions:", fullPrompt);
                 questions = await strict_output(
-                    prompt,
+                    fullPrompt,
                     new Array(amount).fill(
-                        `You are to generate a random easy open-ended question about ${topic}`
+                        `Generate an open-ended question about ${topic}`
                     ),
                     {
                         question: "complete question without any blanks or placeholders", 
@@ -41,11 +48,12 @@ export const POST = async (req: Request, res: Response) => {
                     markedTerms: q.answer.match(/\[\[(.*?)\]\]/g)?.map((m: string) => m.slice(2, -2)) || []
                 }));
             } else if (type === 'mcq') {
-                console.log("Generating MCQ questions using model:", model);
+                const fullPrompt = SYSTEM_QUIZ_PROMPT + "\n" + prompt;
+                console.log("Full prompt for MCQ questions:", fullPrompt);
                 questions = await strict_output(
-                    prompt,
+                    fullPrompt,
                     new Array(amount).fill(
-                        `You are to generate a random easy mcq question about ${topic}`
+                        `Generate a multiple choice question about ${topic}`
                     ),
                     {
                         question: "string",
@@ -137,6 +145,9 @@ export const POST = async (req: Request, res: Response) => {
             questions = [questions];
         }
 
+        // Log the generated questions before translation
+        console.log("Generated questions before translation:", JSON.stringify(questions, null, 2));
+        
         if (targetLanguage && targetLanguage !== 'en') {
             questions = await translateQuizContent(questions, targetLanguage);
         }
