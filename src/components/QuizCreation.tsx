@@ -177,9 +177,9 @@ const QuizCreation = ({topicParam}: Props) => {
     }
 
     return (
-        <div>
-            <Card className="w-[400px] md:w-[600px] lg:w-[800px]">
-                <CardHeader>
+        <div className="flex justify-center items-start min-h-[calc(100vh-8rem)]">
+            <Card className="w-full max-w-[800px] my-4">
+                <CardHeader className="sticky top-0 bg-card z-10 border-b">
                     <CardTitle className="text-2xl font-bold">Quiz Creation</CardTitle>
                     <CardDescription>Choose a topic</CardDescription>
                 </CardHeader>
