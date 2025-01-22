@@ -1,17 +1,14 @@
 // AnythingLLM client configuration
-const ANYTHING_LLM_URL = process.env.ANYTHING_LLM_URL || 'http://localhost:3001';
+const ANYTHING_LLM_URL = process.env.NEXT_PUBLIC_ANYTHING_LLM_URL || 'http://localhost:3001';
 
 // Helper function to make requests to AnythingLLM
 async function makeAnythingLLMRequest(messages: any[], temperature: number = 1, model: string = 'demo', apiKey?: string) {
   try {
-    // Special handling for Ollama models to encourage array output
-    if (model.toLowerCase().includes('llama') || model.toLowerCase().includes('mixtral')) {
-      messages[0].content += "\nIMPORTANT: You must generate multiple separate JSON objects, one for each question. Each object should be complete and valid JSON.";
-    }
-
     if (!apiKey) {
       throw new Error('AnythingLLM API key is required');
     }
+
+    console.log("Making request to AnythingLLM URL:", ANYTHING_LLM_URL);
 
     const response = await fetch(`${ANYTHING_LLM_URL}/api/v1/openai/chat/completions`, {
       method: 'POST',
