@@ -1,28 +1,23 @@
 // AnythingLLM client configuration
 const ANYTHING_LLM_URL = process.env.ANYTHING_LLM_URL || 'http://localhost:3001';
-const ANYTHING_LLM_API_KEY = process.env.ANYTHING_LLM_API_KEY;
-
-if (!ANYTHING_LLM_URL) {
-  throw new Error('ANYTHING_LLM_URL is not set in environment variables');
-}
-
-if (!ANYTHING_LLM_API_KEY) {
-  throw new Error('ANYTHING_LLM_API_KEY is not set in environment variables');
-}
 
 // Helper function to make requests to AnythingLLM
-async function makeAnythingLLMRequest(messages: any[], temperature: number = 1, model: string = 'demo') {
+async function makeAnythingLLMRequest(messages: any[], temperature: number = 1, model: string = 'demo', apiKey?: string) {
   try {
     // Special handling for Ollama models to encourage array output
     if (model.toLowerCase().includes('llama') || model.toLowerCase().includes('mixtral')) {
       messages[0].content += "\nIMPORTANT: You must generate multiple separate JSON objects, one for each question. Each object should be complete and valid JSON.";
     }
 
+    if (!apiKey) {
+      throw new Error('AnythingLLM API key is required');
+    }
+
     const response = await fetch(`${ANYTHING_LLM_URL}/api/v1/openai/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${ANYTHING_LLM_API_KEY}`
+        'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
         messages: [
@@ -135,7 +130,7 @@ Rules for JSON output:
       ];
 
       console.log("Preparing AnythingLLM request");
-      const response = await makeAnythingLLMRequest(messages, temperature, model);
+      const response = await makeAnythingLLMRequest(messages, temperature, model, apiKey);
       console.log("AnythingLLM response received");
 
       const res = response.message?.content;
