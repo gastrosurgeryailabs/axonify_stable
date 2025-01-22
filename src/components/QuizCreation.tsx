@@ -652,12 +652,12 @@ const QuizCreation = ({topicParam}: Props) => {
                                         <FormControl>
                                             <Input 
                                                 type="password"
-                                                placeholder="Enter your AnythingLLM API key..." 
+                                                placeholder="Enter API key or server_url|api_key" 
                                                 {...field} 
                                             />
                                         </FormControl>
                                         <FormDescription>
-                                            Your AnythingLLM API key for generating quiz questions. This will be used securely and not stored.
+                                            For localhost, just enter your API key. For remote servers, use format: server_url|api_key (e.g., https://your-server.com|your-api-key)
                                         </FormDescription>
                                         <FormMessage />
                                     </FormItem>
