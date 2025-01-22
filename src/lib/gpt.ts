@@ -8,45 +8,35 @@ async function makeAnythingLLMRequest(messages: any[], temperature: number = 1, 
       throw new Error('AnythingLLM API key is required');
     }
 
-    console.log("Making request to AnythingLLM URL:", ANYTHING_LLM_BASE_URL);
+    console.log("Making request to questions API");
 
-    const response = await fetch(`${ANYTHING_LLM_BASE_URL}/api/v1/openai/chat/completions`, {
+    const response = await fetch('/api/questions', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        messages: [
-          {
-            role: "system",
-            content: messages[0].content
-          },
-          {
-            role: "user",
-            content: messages[messages.length - 1].content
-          }
-        ],
+        messages,
         model,
         temperature,
-        stream: false
+        apiKey
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => response.statusText);
-      console.error('AnythingLLM API Error:', {
+      console.error('Questions API Error:', {
         status: response.status,
         statusText: response.statusText,
         error: errorText,
         url: response.url
       });
-      throw new Error(`AnythingLLM API error (${response.status}): ${errorText}`);
+      throw new Error(`Questions API error (${response.status}): ${errorText}`);
     }
 
     const data = await response.json();
     if (!data.choices?.[0]?.message?.content) {
-      throw new Error('Invalid response format from AnythingLLM');
+      throw new Error('Invalid response format from Questions API');
     }
 
     return {
@@ -55,7 +45,7 @@ async function makeAnythingLLMRequest(messages: any[], temperature: number = 1, 
       }
     };
   } catch (error) {
-    console.error('AnythingLLM Request Failed:', error);
+    console.error('Questions API Request Failed:', error);
     throw error;
   }
 }

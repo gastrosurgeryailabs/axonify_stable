@@ -4,6 +4,8 @@ import { ZodError } from "zod";
 import { strict_output, SYSTEM_QUIZ_PROMPT } from "@/lib/gpt";
 import { translateQuizContent } from "@/lib/translation";
 
+const ANYTHING_LLM_URL = process.env.NEXT_PUBLIC_ANYTHING_LLM_URL || 'http://localhost:3001';
+
 // POST /api/questions
 export const POST = async (req: Request, res: Response) => {
     try {
@@ -174,5 +176,55 @@ export const POST = async (req: Request, res: Response) => {
             { status: 500 }
         );
     }
+}
+
+export async function POST_ANYTHING_LLM(req: Request) {
+  try {
+    const { messages, model, temperature, apiKey } = await req.json();
+
+    if (!apiKey) {
+      return NextResponse.json({ error: 'API key is required' }, { status: 400 });
+    }
+
+    console.log("Making request to AnythingLLM:", ANYTHING_LLM_URL);
+
+    const response = await fetch(`${ANYTHING_LLM_URL}/api/v1/openai/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        messages: [
+          {
+            role: "system",
+            content: messages[0].content
+          },
+          {
+            role: "user",
+            content: messages[messages.length - 1].content
+          }
+        ],
+        model,
+        temperature,
+        stream: false
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('AnythingLLM API error:', error);
+      return NextResponse.json({ error }, { status: response.status });
+    }
+
+    const data = await response.json();
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error('Questions API error:', error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { status: 500 }
+    );
+  }
 }
 
