@@ -1,18 +1,71 @@
-import OpenAI from 'openai';
+// AnythingLLM client configuration
+const ANYTHING_LLM_URL = process.env.ANYTHING_LLM_URL || 'http://localhost:3001';
+const ANYTHING_LLM_API_KEY = process.env.ANYTHING_LLM_API_KEY;
 
-if (!process.env.OPENAI_API_KEY) {
-  throw new Error('OPENAI_API_KEY is not set in environment variables');
+if (!ANYTHING_LLM_URL) {
+  throw new Error('ANYTHING_LLM_URL is not set in environment variables');
 }
 
-const defaultOpenAI = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+if (!ANYTHING_LLM_API_KEY) {
+  throw new Error('ANYTHING_LLM_API_KEY is not set in environment variables');
+}
 
-export function getOpenAIClient(apiKey?: string) {
-  if (apiKey) {
-    return new OpenAI({ apiKey });
+// Helper function to make requests to AnythingLLM
+async function makeAnythingLLMRequest(messages: any[], temperature: number = 1, model: string = 'demo') {
+  try {
+    // Special handling for Ollama models to encourage array output
+    if (model.toLowerCase().includes('llama') || model.toLowerCase().includes('mixtral')) {
+      messages[0].content += "\nIMPORTANT: You must generate multiple separate JSON objects, one for each question. Each object should be complete and valid JSON.";
+    }
+
+    const response = await fetch(`${ANYTHING_LLM_URL}/api/v1/openai/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${ANYTHING_LLM_API_KEY}`
+      },
+      body: JSON.stringify({
+        messages: [
+          {
+            role: "system",
+            content: messages[0].content
+          },
+          {
+            role: "user",
+            content: messages[messages.length - 1].content
+          }
+        ],
+        model,
+        temperature,
+        stream: false
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => response.statusText);
+      console.error('AnythingLLM API Error:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText,
+        url: response.url
+      });
+      throw new Error(`AnythingLLM API error (${response.status}): ${errorText}`);
+    }
+
+    const data = await response.json();
+    if (!data.choices?.[0]?.message?.content) {
+      throw new Error('Invalid response format from AnythingLLM');
+    }
+
+    return {
+      message: {
+        content: data.choices[0].message.content
+      }
+    };
+  } catch (error) {
+    console.error('AnythingLLM Request Failed:', error);
+    throw error;
   }
-  return defaultOpenAI;
 }
 
 interface OutputFormat {
@@ -25,14 +78,12 @@ export async function strict_output(
   output_format: OutputFormat,
   default_category: string = "",
   output_value_only: boolean = false,
-  model: string = "gpt-3.5-turbo",
+  model: string = "demo",
   temperature: number = 1,
   num_tries: number = 3,
   verbose: boolean = false,
   apiKey?: string
 ): Promise<any> {
-  const openai = getOpenAIClient(apiKey);
-  console.log("OpenAI client initialized for model:", model);
   const list_input = Array.isArray(user_prompt);
   const dynamic_elements = /<.*?>/.test(JSON.stringify(output_format));
   const list_output = /\[.*?\]/.test(JSON.stringify(output_format));
@@ -40,7 +91,13 @@ export async function strict_output(
 
   for (let i = 0; i < num_tries; i++) {
     try {
-      let output_format_prompt = `\nYou are to output the following in json format: ${JSON.stringify(output_format)}. \nDo not put quotation marks or escape character \\ in the output fields.`;
+      let output_format_prompt = `\nYou must output ONLY valid JSON in the following format: ${JSON.stringify(output_format)}. 
+Important formatting rules:
+1. Output must be parseable JSON
+2. Do not include any explanatory text before or after the JSON
+3. Do not use markdown code blocks
+4. Do not include quotation marks or escape characters \\ in the output fields
+5. The response should be ONLY the JSON object, nothing else\n`;
 
       if (list_output) {
         output_format_prompt += `\nIf output field is a list, classify output into the best element of the list.`;
@@ -52,49 +109,43 @@ export async function strict_output(
         output_format_prompt += `\nGenerate a list of json, one json for each input element.`;
       }
 
+      // Add special handling for Ollama models
+      if (model.toLowerCase().includes('llama') || model.toLowerCase().includes('mixtral') || model.toLowerCase().includes('gemini')) {
+        output_format_prompt = `\nVery important: You must respond ONLY with a valid JSON object.
+Do not include any other text, markdown, or explanations.
+The JSON must exactly match this format: ${JSON.stringify(output_format)}
+
+Rules for JSON output:
+1. Must be valid, parseable JSON
+2. No text before or after the JSON
+3. No markdown code blocks
+4. No quotation marks or escape characters in output fields
+5. ONLY output the JSON object itself\n` + output_format_prompt;
+      }
+
       const messages = [
         {
-          role: "system" as const,
+          role: "system",
           content: system_prompt + output_format_prompt + error_msg + "\nIMPORTANT: For multiple items, wrap them in a JSON array []",
         },
         {
-          role: "user" as const,
+          role: "user",
           content: Array.isArray(user_prompt) ? user_prompt.join('\n') : user_prompt,
         },
       ];
 
-      console.log("Preparing OpenAI request for model:", model);
-      console.log("Request configuration:", {
-        model,
-        temperature,
-        messageCount: messages.length,
-        systemPromptLength: messages[0].content.length,
-        userPromptLength: messages[1].content.length
-      });
+      console.log("Preparing AnythingLLM request");
+      const response = await makeAnythingLLMRequest(messages, temperature, model);
+      console.log("AnythingLLM response received");
 
-      const response = await openai.chat.completions.create({
-        model,
-        temperature,
-        messages,
-      });
-
-      console.log("OpenAI response received from model:", model);
-      console.log("Response metadata:", {
-        model: response.model, // This will show the actual model used
-        promptTokens: response.usage?.prompt_tokens,
-        completionTokens: response.usage?.completion_tokens,
-        totalTokens: response.usage?.total_tokens
-      });
-
-      const res = response.choices[0].message?.content;
+      const res = response.message?.content;
       if (!res) {
-        throw new Error("No response content from OpenAI");
+        throw new Error("No response content from AnythingLLM");
       }
-
-      console.log("Processing response from model:", model);
 
       try {
         // Try to parse as is first
+        let cleanedRes: string;
         try {
           let output: any = JSON.parse(res);
           if (list_input && !Array.isArray(output)) {
@@ -103,37 +154,131 @@ export async function strict_output(
           return list_input ? output : output[0];
         } catch (parseError) {
           // If parsing fails, try to fix common issues
-          let cleanedRes = res
-            .trim()
-            // Remove any markdown code block syntax
-            .replace(/```json\n?|```\n?/g, '')
-            // If we have multiple JSON objects separated by newlines, wrap them in an array
-            .split(/\n+/)
-            .filter(line => line.trim())
-            .join(',');
+          cleanedRes = typeof res === 'string' ? res.trim() : JSON.stringify(res).trim();
+          
+          // Special handling for Anthropic models
+          if (model.toLowerCase().includes('claude')) {
+            console.log("Applying Anthropic-specific response cleaning");
             
-          if (!cleanedRes.startsWith('[')) {
-            cleanedRes = `[${cleanedRes}]`;
-          }
-
-          let output: any = JSON.parse(cleanedRes);
-          if (!Array.isArray(output)) {
-            throw new Error("Expected array output");
-          }
-
-          // Validate output format
-          for (const item of output) {
-            for (const key in output_format) {
-              if (!item[key]) {
-                throw new Error(`Missing required key: ${key}`);
+            // Remove any markdown code block syntax
+            cleanedRes = cleanedRes.replace(/```json\n?|```\n?/g, '');
+            
+            // If we have multiple questions (list input)
+            if (list_input) {
+              try {
+                // Try to parse as a JSON array first
+                JSON.parse(cleanedRes);
+              } catch (e) {
+                // If it's not already an array, try to extract multiple JSON objects
+                const jsonObjects = cleanedRes.match(/\{[^{}]*\}/g) || [];
+                if (jsonObjects.length > 0) {
+                  cleanedRes = `[${jsonObjects.join(',')}]`;
+                } else {
+                  // If no valid JSON objects found, try to parse the whole response
+                  const start = cleanedRes.indexOf('{');
+                  const end = cleanedRes.lastIndexOf('}') + 1;
+                  if (start !== -1 && end > start) {
+                    cleanedRes = `[${cleanedRes.substring(start, end)}]`;
+                  }
+                }
+              }
+            } else {
+              // For single question, extract the JSON object
+              const start = cleanedRes.indexOf('{');
+              const end = cleanedRes.lastIndexOf('}') + 1;
+              if (start !== -1 && end > start) {
+                cleanedRes = cleanedRes.substring(start, end);
               }
             }
           }
+          // Special handling for Ollama/Gemini models
+          else if (model.toLowerCase().includes('llama') || 
+              model.toLowerCase().includes('mixtral') || 
+              model.toLowerCase().includes('gemini')) {
+            console.log("Applying Ollama/Gemini-specific response cleaning");
+            
+            // Handle array of questions for Ollama/Gemini
+            if (list_input) {
+              // If response doesn't start with [, it's a single question - we need to combine multiple
+              if (!cleanedRes.startsWith('[')) {
+                let questions = [];
+                // Split the response by double newlines to separate multiple JSON objects
+                const parts = cleanedRes.split(/\n\n+/);
+                
+                for (let part of parts) {
+                  // Find and extract JSON object from each part
+                  const start = part.indexOf('{');
+                  const end = part.lastIndexOf('}') + 1;
+                  if (start !== -1 && end > start) {
+                    const jsonPart = part.substring(start, end);
+                    try {
+                      const parsed = JSON.parse(jsonPart);
+                      questions.push(parsed);
+                    } catch (e) {
+                      console.log("Failed to parse part:", jsonPart);
+                    }
+                  }
+                }
+                
+                // If we got some valid questions, use them
+                if (questions.length > 0) {
+                  cleanedRes = JSON.stringify(questions);
+                } else {
+                  // If no valid questions found, wrap the single response in an array
+                  const singleQuestion = cleanedRes.substring(cleanedRes.indexOf('{'), cleanedRes.lastIndexOf('}') + 1);
+                  cleanedRes = `[${singleQuestion}]`;
+                }
+              }
+            } else {
+              // Single question handling
+              cleanedRes = cleanedRes.substring(cleanedRes.indexOf('{'));
+              cleanedRes = cleanedRes.substring(0, cleanedRes.lastIndexOf('}') + 1);
+            }
+            
+            // Clean up any markdown or code block syntax
+            cleanedRes = cleanedRes.replace(/```json\n?|```\n?/g, '');
+            console.log("Cleaned Ollama/Gemini response:", cleanedRes);
+          } else {
+            cleanedRes = cleanedRes
+              .replace(/```json\n?|```\n?/g, '')
+              .split(/\n+/)
+              .filter((line: string) => line.trim())
+              .join(',');
+          }
+            
+          if (!cleanedRes.startsWith('[') && list_input) {
+            cleanedRes = `[${cleanedRes}]`;
+          }
 
-          return list_input ? output : output[0];
+          try {
+            let output: any = JSON.parse(cleanedRes);
+            if (list_input && !Array.isArray(output)) {
+              throw new Error("Expected array output for list input");
+            }
+
+            // Validate output format
+            const validateOutput = (item: any) => {
+              for (const key in output_format) {
+                if (!item[key]) {
+                  throw new Error(`Missing required key: ${key}`);
+                }
+              }
+            };
+
+            if (Array.isArray(output)) {
+              output.forEach(validateOutput);
+            } else {
+              validateOutput(output);
+            }
+
+            return list_input ? output : output[0];
+          } catch (secondParseError) {
+            console.error("Error parsing cleaned response:", secondParseError);
+            throw secondParseError;
+          }
         }
       } catch (parseError: any) {
-        console.error("Error parsing OpenAI response:", parseError);
+        console.error("Error parsing AnythingLLM response:", parseError);
         error_msg = `\n\nPrevious response was invalid JSON. Error: ${parseError.message || 'Unknown error'}. Response was: ${res}`;
         if (i === num_tries - 1) throw parseError;
       }
@@ -168,20 +313,21 @@ export const SYSTEM_QUIZ_PROMPT = `You are a helpful AI that generates high-qual
 
 Remember: The correct answer should only appear ONCE in the options array, always as the first item.`;
 
-export async function getQuizQuestion(topic: string, customPrompt: string, model: string = "gpt-3.5-turbo", apiKey?: string) {
+export async function getQuizQuestion(topic: string, customPrompt: string, model: string = "default", apiKey?: string) {
+  // Create an array of prompts for the number of questions needed
   const response = await strict_output(
     SYSTEM_QUIZ_PROMPT + "\n" + customPrompt,
     `Generate a multiple choice question about ${topic}. The response must follow this format strictly:
 1. The 'question' should be your question text
-2. The 'answer' should be the correct answer
-3. The 'options' array must contain EXACTLY 4 items in this order:
-   - First: the correct answer
-   - Then: 3 different incorrect options that are not duplicates
-The options will be shuffled later, so always put the correct answer first.`,
+2. The 'answer' should be the correct answer (without any prefixes like 'A)', 'B)', etc.)
+3. The 'incorrectAnswers' array must contain EXACTLY 3 different incorrect options
+4. Do not add any prefixes (A, B, C, D) to the answers
+5. Do not include explanations in the answers
+6. Each answer should be concise and direct`,
     {
       question: "string",
       answer: "string",
-      options: ["string", "string", "string", "string"]
+      incorrectAnswers: ["string", "string", "string"]
     },
     "",
     false,
@@ -192,16 +338,21 @@ The options will be shuffled later, so always put the correct answer first.`,
     apiKey
   );
 
-  // Ensure answer is correct and shuffle options
-  const shuffledResponse = {
-    ...response,
-    options: [...response.options].sort(() => Math.random() - 0.5)
-  };
+  // Transform the response to match the expected format
+  const transformResponse = (res: any) => ({
+    question: res.question,
+    answer: res.answer,
+    options: [res.answer, ...res.incorrectAnswers].sort(() => Math.random() - 0.5)
+  });
 
-  return shuffledResponse;
+  // Handle both single and array responses
+  if (Array.isArray(response)) {
+    return response.map(transformResponse);
+  }
+  return transformResponse(response);
 }
 
-export async function getOpenEndedQuestion(topic: string, customPrompt: string, model: string = "gpt-3.5-turbo", apiKey?: string) {
+export async function getOpenEndedQuestion(topic: string, customPrompt: string, model: string = "default", apiKey?: string) {
   const response = await strict_output(
     SYSTEM_QUIZ_PROMPT + "\n" + customPrompt,
     `Generate an open-ended question about ${topic}`,
@@ -220,5 +371,3 @@ export async function getOpenEndedQuestion(topic: string, customPrompt: string, 
 
   return response;
 }
-
-export default defaultOpenAI;

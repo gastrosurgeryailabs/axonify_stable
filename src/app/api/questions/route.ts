@@ -13,21 +13,21 @@ export const POST = async (req: Request, res: Response) => {
         console.log("Questions API received request:", {
             topic,
             type,
-            prompt,
-            model,
-            amount
+            amount,
+            targetLanguage,
+            model
         });
         
         let questions: any;
+        const systemPromptWithCustom = SYSTEM_QUIZ_PROMPT + "\n\nCustom Instructions:\n" + prompt;
         
         try {
             if (type === 'open_ended') {
-                const fullPrompt = SYSTEM_QUIZ_PROMPT + "\n" + prompt;
-                console.log("Full prompt for open-ended questions:", fullPrompt);
+                console.log("Full prompt for open-ended questions:", systemPromptWithCustom);
                 questions = await strict_output(
-                    fullPrompt,
+                    systemPromptWithCustom,
                     new Array(amount).fill(
-                        `Generate an open-ended question about ${topic}`
+                        `Generate an open-ended question about ${topic}. Follow the custom instructions provided.`
                     ),
                     {
                         question: "complete question without any blanks or placeholders", 
@@ -48,12 +48,11 @@ export const POST = async (req: Request, res: Response) => {
                     markedTerms: q.answer.match(/\[\[(.*?)\]\]/g)?.map((m: string) => m.slice(2, -2)) || []
                 }));
             } else if (type === 'mcq') {
-                const fullPrompt = SYSTEM_QUIZ_PROMPT + "\n" + prompt;
-                console.log("Full prompt for MCQ questions:", fullPrompt);
+                console.log("Full prompt for MCQ questions:", systemPromptWithCustom);
                 questions = await strict_output(
-                    fullPrompt,
+                    systemPromptWithCustom,
                     new Array(amount).fill(
-                        `Generate a detailed multiple choice question about ${topic}. If the custom prompt requests scenario-based questions, create a real-world scenario or case study before presenting the question. Make the question engaging and thought-provoking.`
+                        `Generate a multiple choice question about ${topic}. Follow the custom instructions provided.`
                     ),
                     {
                         question: "detailed question text, including any scenario or context if applicable",
