@@ -368,6 +368,5 @@ export async function getOpenEndedQuestion(topic: string, customPrompt: string, 
     false,
     apiKey
   );
-
   return response;
 }
