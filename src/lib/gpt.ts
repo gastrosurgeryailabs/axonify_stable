@@ -1,5 +1,5 @@
 // AnythingLLM client configuration
-const ANYTHING_LLM_BASE_URL = typeof window !== 'undefined' ? window.location.origin : process.env.NEXT_PUBLIC_ANYTHING_LLM_URL || 'http://localhost:3001';
+const ANYTHING_LLM_URL = process.env.NEXT_PUBLIC_ANYTHING_LLM_URL || 'http://localhost:3001';
 
 // Helper function to make requests to AnythingLLM
 async function makeAnythingLLMRequest(messages: any[], temperature: number = 1, model: string = 'demo', apiKey?: string) {
@@ -8,35 +8,40 @@ async function makeAnythingLLMRequest(messages: any[], temperature: number = 1, 
       throw new Error('AnythingLLM API key is required');
     }
 
-    console.log("Making request to questions API");
+    // Get the current origin or use localhost as fallback
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001';
 
-    const response = await fetch('/api/questions', {
+    const response = await fetch(`${origin}/api/v1/openai/chat/completions`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        messages,
+        messages: [
+          {
+            role: "system",
+            content: messages[0].content
+          },
+          {
+            role: "user",
+            content: messages[messages.length - 1].content
+          }
+        ],
         model,
         temperature,
-        apiKey
+        stream: false
       }),
     });
 
     if (!response.ok) {
-      const errorText = await response.text().catch(() => response.statusText);
-      console.error('Questions API Error:', {
-        status: response.status,
-        statusText: response.statusText,
-        error: errorText,
-        url: response.url
-      });
-      throw new Error(`Questions API error (${response.status}): ${errorText}`);
+      const errorText = await response.text();
+      throw new Error(`AnythingLLM API error: ${errorText}`);
     }
 
     const data = await response.json();
     if (!data.choices?.[0]?.message?.content) {
-      throw new Error('Invalid response format from Questions API');
+      throw new Error('Invalid response format from AnythingLLM');
     }
 
     return {
@@ -45,7 +50,7 @@ async function makeAnythingLLMRequest(messages: any[], temperature: number = 1, 
       }
     };
   } catch (error) {
-    console.error('Questions API Request Failed:', error);
+    console.error('AnythingLLM Request Failed:', error);
     throw error;
   }
 }

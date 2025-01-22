@@ -4,20 +4,22 @@ import { ZodError } from "zod";
 import { strict_output, SYSTEM_QUIZ_PROMPT } from "@/lib/gpt";
 import { translateQuizContent } from "@/lib/translation";
 
-const ANYTHING_LLM_URL = process.env.NEXT_PUBLIC_ANYTHING_LLM_URL || 'http://localhost:3001';
-
 // POST /api/questions
 export const POST = async (req: Request, res: Response) => {
     try {
         const body = await req.json();
         const {amount, topic, type, targetLanguage, prompt, model, apiKey} = quizCreationSchema.parse(body);
         
+        // Get the origin from the request URL
+        const origin = new URL(req.url).origin;
+        
         console.log("Questions API received request:", {
             topic,
             type,
             amount,
             targetLanguage,
-            model
+            model,
+            origin
         });
         
         let questions: any;
