@@ -1,5 +1,5 @@
 // AnythingLLM client configuration
-const ANYTHING_LLM_BASE_URL = process.env.NEXT_PUBLIC_ANYTHING_LLM_URL || 'http://localhost:3001';
+const ANYTHING_LLM_BASE_URL = typeof window !== 'undefined' ? window.location.origin : process.env.NEXT_PUBLIC_ANYTHING_LLM_URL || 'http://localhost:3001';
 
 // Helper function to make requests to AnythingLLM
 async function makeAnythingLLMRequest(messages: any[], temperature: number = 1, model: string = 'demo', apiKey?: string) {
@@ -8,18 +8,13 @@ async function makeAnythingLLMRequest(messages: any[], temperature: number = 1, 
       throw new Error('AnythingLLM API key is required');
     }
 
-    // Extract server URL and API key if provided in the format "server_url|api_key"
-    const [serverUrl, actualKey] = apiKey.includes('|') 
-      ? apiKey.split('|') 
-      : [ANYTHING_LLM_BASE_URL, apiKey];
+    console.log("Making request to AnythingLLM URL:", ANYTHING_LLM_BASE_URL);
 
-    console.log("Making request to AnythingLLM URL:", serverUrl);
-
-    const response = await fetch(`${serverUrl}/api/v1/openai/chat/completions`, {
+    const response = await fetch(`${ANYTHING_LLM_BASE_URL}/api/v1/openai/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${actualKey}`
+        'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
         messages: [
