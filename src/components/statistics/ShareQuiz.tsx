@@ -17,7 +17,7 @@ const ShareQuiz = ({ game }: Props) => {
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
-            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || window.location.origin;
+            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://axonify.vercel.app';
             const gameUrl = `${baseUrl}/play/${game.gameType === 'mcq' ? 'mcq' : 'open-ended'}/${game.id}`
             setShareLink(gameUrl)
             setIsMobile(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent))

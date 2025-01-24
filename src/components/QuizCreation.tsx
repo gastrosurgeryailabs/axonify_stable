@@ -129,6 +129,24 @@ const AI_PROVIDERS = {
             "o1-mini-2024-09-12": 128000
         }
     },
+    gemini: {
+        name: "Gemini",
+        models: {
+            "gemini-pro": 32000,
+            "gemini-1.0-pro": 32000,
+            "gemini-1.5-pro-latest": 128000,
+            "gemini-1.5-flash-latest": 128000,
+            "gemini-1.5-pro-exp-0801": 128000,
+            "gemini-1.5-pro-exp-0827": 128000,
+            "gemini-1.5-flash-exp-0827": 128000,
+            "gemini-1.5-flash-8b-exp-0827": 128000,
+            "gemini-exp-1114": 128000,
+            "gemini-exp-1121": 128000,
+            "gemini-exp-1206": 128000,
+            "learnlm-1.5-pro-experimental": 128000,
+            "gemini-2.0-flash-exp": 128000
+        }
+    },
     ollama: {
         name: "Ollama",
         models: {
@@ -295,7 +313,7 @@ const QuizCreation = ({topicParam}: Props) => {
     const createWorkspace = async (workspaceData: any, apiKey: string) => {
         try {
             setIsCreatingWorkspace(true);
-            const response = await fetch(`${process.env.NEXT_PUBLIC_ANYTHING_LLM_URL || 'http://localhost:3001'}/api/v1/workspaces`, {
+            const response = await fetch(`${process.env.ANYTHING_LLM_URL || 'http://localhost:3001'}/api/v1/workspace/new`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${apiKey}`,
@@ -303,12 +321,9 @@ const QuizCreation = ({topicParam}: Props) => {
                 },
                 body: JSON.stringify({
                     name: workspaceData.name,
-                    chatModel: workspaceData.chatModel,
-                    chatProvider: workspaceData.chatProvider,
-                    chatMode: workspaceData.chatMode,
-                    openAiTemp: workspaceData.openAiTemp,
-                    openAiHistory: workspaceData.openAiHistory,
-                    openAiPrompt: workspaceData.openAiPrompt
+                    chatModel: workspaceData.chatModel || "gpt-3.5-turbo",
+                    chatProvider: workspaceData.chatProvider || "openai",
+                    chatMode: workspaceData.chatMode || "chat"
                 })
             });
             
@@ -652,7 +667,7 @@ const QuizCreation = ({topicParam}: Props) => {
                                         <FormControl>
                                             <Input 
                                                 type="password"
-                                                placeholder="Enter your AnythingLLM API key" 
+                                                placeholder="Enter your AnythingLLM API key..." 
                                                 {...field} 
                                             />
                                         </FormControl>

@@ -4,19 +4,27 @@ const ANYTHING_LLM_URL = process.env.NEXT_PUBLIC_ANYTHING_LLM_URL || 'http://loc
 // Helper function to make requests to AnythingLLM
 async function makeAnythingLLMRequest(messages: any[], temperature: number = 1, model: string = 'demo', apiKey?: string) {
   try {
+    // Special handling for Ollama models to encourage array output
+    if (model.toLowerCase().includes('llama') || model.toLowerCase().includes('mixtral')) {
+      messages[0].content += "\nIMPORTANT: You must generate multiple separate JSON objects, one for each question. Each object should be complete and valid JSON.";
+    }
+
     if (!apiKey) {
       throw new Error('AnythingLLM API key is required');
     }
 
-    // Get the current origin or use localhost as fallback
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001';
+    // Add CORS headers for cross-origin requests
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+    };
 
-    const response = await fetch(`${origin}/api/v1/openai/chat/completions`, {
+    const response = await fetch(`${ANYTHING_LLM_URL}/api/v1/openai/chat/completions`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
+      headers,
       body: JSON.stringify({
         messages: [
           {
@@ -35,8 +43,14 @@ async function makeAnythingLLMRequest(messages: any[], temperature: number = 1, 
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`AnythingLLM API error: ${errorText}`);
+      const errorText = await response.text().catch(() => response.statusText);
+      console.error('AnythingLLM API Error:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText,
+        url: response.url
+      });
+      throw new Error(`AnythingLLM API error (${response.status}): ${errorText}`);
     }
 
     const data = await response.json();
@@ -298,19 +312,35 @@ export const SYSTEM_QUIZ_PROMPT = `You are a helpful AI that generates high-qual
    - Ensure answers are comprehensive but concise
    - When scenarios are requested, include relevant context in the question
 
+IMPORTANT: When multiple questions are requested, you MUST:
+1. Generate the exact number of questions requested
+2. Format each question as a separate JSON object
+3. Return all questions in a JSON array
+4. Each question must be unique and cover different aspects of the topic
+
 Remember: The correct answer should only appear ONCE in the options array, always as the first item.`;
 
 export async function getQuizQuestion(topic: string, customPrompt: string, model: string = "default", apiKey?: string) {
+  // Extract number of questions from customPrompt if it exists
+  const numQuestionsMatch = customPrompt.match(/(\d+)\s*questions?/i);
+  const numQuestions = numQuestionsMatch ? parseInt(numQuestionsMatch[1]) : 1;
+  
   // Create an array of prompts for the number of questions needed
-  const response = await strict_output(
-    SYSTEM_QUIZ_PROMPT + "\n" + customPrompt,
+  const prompts = Array(numQuestions).fill(
     `Generate a multiple choice question about ${topic}. The response must follow this format strictly:
 1. The 'question' should be your question text
 2. The 'answer' should be the correct answer (without any prefixes like 'A)', 'B)', etc.)
 3. The 'incorrectAnswers' array must contain EXACTLY 3 different incorrect options
 4. Do not add any prefixes (A, B, C, D) to the answers
 5. Do not include explanations in the answers
-6. Each answer should be concise and direct`,
+6. Each answer should be concise and direct
+
+IMPORTANT: You must generate ${numQuestions} unique questions in a JSON array format.`
+  );
+
+  const response = await strict_output(
+    SYSTEM_QUIZ_PROMPT,
+    prompts,
     {
       question: "string",
       answer: "string",
@@ -336,7 +366,7 @@ export async function getQuizQuestion(topic: string, customPrompt: string, model
   if (Array.isArray(response)) {
     return response.map(transformResponse);
   }
-  return transformResponse(response);
+  return [transformResponse(response)]; // Ensure we always return an array
 }
 
 export async function getOpenEndedQuestion(topic: string, customPrompt: string, model: string = "default", apiKey?: string) {

@@ -24,7 +24,8 @@ export function ShareButton({ topic, gameId }: ShareButtonProps) {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      setCurrentShareLink(`${window.location.origin}/quiz?topic=${encodeURIComponent(topic)}`);
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://axonify.vercel.app';
+      setCurrentShareLink(`${baseUrl}/quiz?topic=${encodeURIComponent(topic)}`);
     }
   }, [topic]);
 
