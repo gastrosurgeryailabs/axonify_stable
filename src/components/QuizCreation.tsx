@@ -21,12 +21,26 @@ import {ShareButton }from './ShareButton';
 import { Textarea } from './ui/textarea';
 import { AxiosRequestConfig } from 'axios';
 import { useEffect } from 'react';
+import PlatformSelector from './PlatformSelector';
+import InstagramSection from './InstagramSection';
+import FacebookSection from './FacebookSection';
+import LinkedInSection from './LinkedInSection';
+import TwitterSection from './TwitterSection';
+import TikTokSection from './TikTokSection';
+import PinterestSection from './PinterestSection';
+import YouTubeSection from './YouTubeSection';
+import MastodonSection from './MastodonSection';
+import ThreadsSection from './ThreadsSection';
+import BlueskySection from './BlueskySection';
 
 type Props = {
     topicParam: string;
 }
 
-type Input = z.infer<typeof quizCreationSchema>;
+type Input = z.infer<typeof quizCreationSchema> & {
+    initialized: boolean;
+    gameId?: string;
+};
 
 interface RequestHeaders {
     [key: string]: string;
@@ -238,20 +252,25 @@ const QuizCreation = ({topicParam}: Props) => {
     const [workspaces, setWorkspaces] = React.useState<Workspace[]>([]);
     const [isLoadingWorkspaces, setIsLoadingWorkspaces] = React.useState(false);
     const [isCreatingWorkspace, setIsCreatingWorkspace] = React.useState(false);
+    const [isInitializing, setIsInitializing] = React.useState(false);
     
     const form = useForm<Input>({
         resolver: zodResolver(quizCreationSchema),
         defaultValues: {
-            amount: 3,
             topic: topicParam || "",
             type: "mcq",
+            amount: 5,
             targetLanguage: "en",
-            model: "",
-            newWorkspace: undefined,
             temperature: 0.7,
+            model: "",
             prompt: "Generate questions that are clear and engaging. For technical topics, ensure explanations are beginner-friendly. Include real-world examples where applicable.",
             apiKey: "",
-            completionMessage: "Great job on completing the quiz!"
+            completionMessage: "Great job on completing the quiz!",
+            socialMedia: {
+                selectedPlatform: undefined,
+            },
+            initialized: false,
+            gameId: undefined
         }
     });
 
@@ -363,67 +382,10 @@ const QuizCreation = ({topicParam}: Props) => {
         }
     }, [apiKey]);
 
-    const {mutate: getQuestions, isPending} = useMutation({
-        mutationFn: async (formData: Input) => {
-            console.log("Mutation starting with workspace:", formData.model);
-            try {
-                const config: AxiosRequestConfig = {
-                    headers: {
-                        'Content-Type': 'application/json',
-                    }
-                };
-                
-                if (formData.apiKey) {
-                    config.headers = {
-                        ...config.headers,
-                        'Authorization': `Bearer ${formData.apiKey}`
-                    };
-                }
-
-                // Create the request payload with all required fields
-                const payload = {
-                    amount: formData.amount,
-                    topic: formData.topic,
-                    type: formData.type,
-                    targetLanguage: formData.targetLanguage,
-                    prompt: formData.prompt,
-                    model: formData.model,
-                    apiKey: formData.apiKey,
-                    temperature: formData.temperature,
-                    completionMessage: formData.completionMessage
-                };
-
-                console.log("Sending request with payload:", payload);
-                const response = await axios.post('/api/game', payload, config);
-                console.log("API response:", response.data);
-                if (!response.data || !response.data.gameId) {
-                    throw new Error('Invalid response from server');
-                }
-                return response.data;
-            } catch (error) {
-                if (axios.isAxiosError(error)) {
-                    const errorMessage = error.response?.data?.error;
-                    console.error("API error:", error.response?.data);
-                    
-                    if (
-                        error.response?.status === 401 ||
-                        error.response?.status === 403 ||
-                        (errorMessage && (
-                            errorMessage.toLowerCase().includes('api key') ||
-                            errorMessage.toLowerCase().includes('authentication')
-                        ))
-                    ) {
-                        throw new Error('Invalid AnythingLLM API key. Please check your API key and try again.');
-                    }
-
-                    if (error.response?.status === 429 || error.response?.status === 503) {
-                        throw new Error('We\'re experiencing high traffic. Please try again in a few seconds.');
-                    }
-                    
-                    throw new Error(errorMessage || 'Failed to create quiz. Please try again in a few moments.');
-                }
-                throw error;
-            }
+    const { mutate: getQuestions, isPending } = useMutation({
+        mutationFn: async (input: Input) => {
+            const response = await axios.post('/api/questions', input);
+            return response.data;
         },
         onError: (error: Error) => {
             setShowLoader(false);
@@ -437,13 +399,94 @@ const QuizCreation = ({topicParam}: Props) => {
         },
         onSuccess: (data) => {
             setFinished(true);
-            setTimeout(() => {
-                const gameType = form.getValues("type");
-                const urlGameType = gameType === 'open_ended' ? 'open-ended' : gameType;
-                router.push(`/play/${urlGameType}/${data.gameId}`);
-            }, 1000);
+            form.setValue('gameId', data.gameId);
+            
+            if (!form.getValues('initialized')) {
+                // If this was initialization, just update the form
+                setShowLoader(false);
+                setFinished(false);
+                form.setValue('initialized', true);
+                toast({
+                    title: "Success",
+                    description: "Quiz initialized successfully!",
+                });
+            } else {
+                // If this was final creation, redirect to play
+                setTimeout(() => {
+                    const gameType = form.getValues("type");
+                    const urlGameType = gameType === 'open_ended' ? 'open-ended' : gameType;
+                    router.push(`/play/${urlGameType}/${data.gameId}`);
+                }, 1000);
+            }
         }
     });
+
+    // Function to handle quiz initialization
+    const handleInitialize = async () => {
+        try {
+            setIsInitializing(true);
+            let formData = form.getValues();
+            
+            // If creating a new workspace
+            if (formData.model === 'new' && formData.newWorkspace) {
+                await createWorkspace(formData.newWorkspace, formData.apiKey);
+                await fetchWorkspaces(formData.apiKey);
+                // Get the latest form values after workspace creation
+                formData = form.getValues();
+            }
+
+            // Ensure we have a valid model
+            if (!formData.model || formData.model === 'new') {
+                toast({
+                    title: "Error",
+                    description: "Please select a workspace before initializing quiz.",
+                    variant: "destructive",
+                });
+                return;
+            }
+
+            // Create submission data with all required fields
+            const submissionData: Input = {
+                ...formData,
+                model: formData.model,
+                amount: Number(formData.amount),
+                temperature: Number(formData.temperature),
+                type: formData.type,
+                topic: formData.topic,
+                targetLanguage: formData.targetLanguage,
+                prompt: formData.prompt,
+                apiKey: formData.apiKey,
+                completionMessage: formData.completionMessage || "Great job on completing the quiz!",
+                initialized: true
+            };
+
+            // Use the same API endpoint as quiz creation
+            const response = await axios.post('/api/game', submissionData);
+            const data = response.data;
+
+            if (!data.gameId) {
+                throw new Error('Failed to get game ID from server');
+            }
+
+            // Update form state
+            form.setValue('gameId', data.gameId);
+            form.setValue('initialized', true);
+            
+            toast({
+                title: "Success",
+                description: "Quiz initialized successfully! You can now use the quiz link in your social media posts.",
+            });
+        } catch (error) {
+            console.error("Quiz initialization error:", error);
+            toast({
+                title: "Error",
+                description: error instanceof Error ? error.message : "Failed to initialize quiz. Please try again.",
+                variant: "destructive",
+            });
+        } finally {
+            setIsInitializing(false);
+        }
+    };
 
     async function onSubmit(input: Input) {
         console.log("Form submitted with raw input:", input);
@@ -482,7 +525,7 @@ const QuizCreation = ({topicParam}: Props) => {
                 prompt: input.prompt,
                 apiKey: input.apiKey,
                 completionMessage: input.completionMessage || "Great job on completing the quiz!"
-        };
+            };
         
         console.log("Final submission data:", submissionData);
         setShowLoader(true);
@@ -918,11 +961,100 @@ const QuizCreation = ({topicParam}: Props) => {
                                 </div>
                             )}
 
+                            {/* Initialize Quiz Section */}
+                            <div className="space-y-4 mt-8">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-lg font-medium">Initialize Quiz</h3>
+                                </div>
+                                <div className="flex flex-col gap-4">
+                                    <div className="text-sm text-muted-foreground">
+                                        <p>Initialize your quiz to generate a shareable link. This link will be automatically included in your social media posts.</p>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        onClick={handleInitialize}
+                                        disabled={isInitializing || form.watch('initialized')}
+                                        className="w-full"
+                                    >
+                                        {isInitializing ? "Initializing..." : form.watch('initialized') ? "Quiz Initialized" : "Initialize Quiz"}
+                                    </Button>
+                                    {form.watch('initialized') && form.watch('gameId') && (
+                                        <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-4">
+                                            <h4 className="font-semibold text-base mb-2">Shareable Quiz Link</h4>
+                                            <div className="bg-muted rounded-md p-3 flex items-center gap-2">
+                                                <div className="flex-1 break-all text-sm">
+                                                    <code>
+                                                        {`https://axonify.vercel.app/play/${form.watch('type')}/${form.watch('gameId')}`}
+                                                    </code>
+                                                </div>
+                                                <Button 
+                                                    variant="secondary" 
+                                                    size="sm"
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        const url = `https://axonify.vercel.app/play/${form.watch('type')}/${form.watch('gameId')}`;
+                                                        navigator.clipboard.writeText(url);
+                                                        toast({
+                                                            title: "Copied!",
+                                                            description: "Quiz link copied to clipboard",
+                                                        });
+                                                    }}
+                                                >
+                                                    Copy
+                                                </Button>
+                                            </div>
+                                            <p className="text-sm text-muted-foreground mt-2">
+                                                This link will be automatically included in your social media posts below.
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Social Media Section */}
+                            <div className="space-y-4 mt-8">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-lg font-medium">Social Media</h3>
+                                </div>
+                                <PlatformSelector form={form} />
+                                {form.watch("socialMedia.selectedPlatform") === 'instagram' && (
+                                    <InstagramSection form={form} />
+                                )}
+                                {form.watch("socialMedia.selectedPlatform") === 'facebook' && (
+                                    <FacebookSection form={form} />
+                                )}
+                                {form.watch("socialMedia.selectedPlatform") === 'linkedin' && (
+                                    <LinkedInSection form={form} />
+                                )}
+                                {form.watch("socialMedia.selectedPlatform") === 'twitter' && (
+                                    <TwitterSection form={form} />
+                                )}
+                                {form.watch("socialMedia.selectedPlatform") === 'tiktok' && (
+                                    <TikTokSection form={form} />
+                                )}
+                                {form.watch("socialMedia.selectedPlatform") === 'pinterest' && (
+                                    <PinterestSection form={form} />
+                                )}
+                                {form.watch("socialMedia.selectedPlatform") === 'youtube' && (
+                                    <YouTubeSection form={form} />
+                                )}
+                                {form.watch("socialMedia.selectedPlatform") === 'mastodon' && (
+                                    <MastodonSection form={form} />
+                                )}
+                                {form.watch("socialMedia.selectedPlatform") === 'threads' && (
+                                    <ThreadsSection form={form} />
+                                )}
+                                {form.watch("socialMedia.selectedPlatform") === 'bluesky' && (
+                                    <BlueskySection form={form} />
+                                )}
+                            </div>
+
                             <div className="flex justify-between">
                                 <Button
                                     type="submit"
                                     className="w-full"
-                                    disabled={isPending || isCreatingWorkspace}
+                                    disabled={isPending || isCreatingWorkspace || !form.watch('initialized')}
                                 >
                                     {isCreatingWorkspace ? "Creating Workspace..." : "Create Quiz"}
                                 </Button>
