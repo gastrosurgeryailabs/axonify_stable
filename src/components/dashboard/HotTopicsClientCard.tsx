@@ -10,7 +10,7 @@ const CustomWordCloud = dynamic(() => import('@/components/CustomWordCloud'), {
   loading: () => <div className="flex items-center justify-center h-[550px]">Loading word cloud...</div>
 })
 
-const ADMIN_EMAILS = ['abhaychopada@gmail.com', 'dnyanesh.tech001@gmail.com'];
+const ADMIN_EMAILS = ['abhaychopada@gmail.com', 'dnyanesh.tech001@gmail.com', 'gastrosurgeryai@gmail.com'];
 
 type Props = {
   formattedTopics: {

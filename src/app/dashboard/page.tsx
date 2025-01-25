@@ -9,7 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Clock, HeartPulse } from 'lucide-react';
 import Image from 'next/image';
 
-const ADMIN_EMAILS = ['abhaychopada@gmail.com', 'dnyanesh.tech001@gmail.com'];
+const ADMIN_EMAILS = ['abhaychopada@gmail.com', 'dnyanesh.tech001@gmail.com', 'gastrosurgeryai@gmail.com'];
 
 type Props = {};
 

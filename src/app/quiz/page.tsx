@@ -3,7 +3,7 @@ import { getAuthSession } from '@/lib/nextauth';
 import { redirect } from 'next/navigation';
 import React from 'react'
 
-const ADMIN_EMAILS = ['abhaychopada@gmail.com', 'dnyanesh.tech001@gmail.com'];
+const ADMIN_EMAILS = ['abhaychopada@gmail.com', 'dnyanesh.tech001@gmail.com', 'gastrosurgeryai@gmail.com'];
 
 interface Props {
     searchParams: Promise<{

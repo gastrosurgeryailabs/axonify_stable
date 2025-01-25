@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db'
 import HotTopicsClientCard from './HotTopicsClientCard'
 import { getAuthSession } from '@/lib/nextauth'
 
-const ADMIN_EMAILS = ['abhaychopada@gmail.com', 'dnyanesh.tech001@gmail.com'];
+const ADMIN_EMAILS = ['abhaychopada@gmail.com', 'dnyanesh.tech001@gmail.com', 'gastrosurgeryai@gmail.com'];
 
 type Props = {}
 
