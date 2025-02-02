@@ -11,7 +11,7 @@ export const workspaceCreationSchema = z.object({
 });
 
 export const socialMediaSchema = z.object({
-    selectedPlatform: z.enum([
+    selectedPlatforms: z.array(z.enum([
         'instagram', 
         'facebook', 
         'linkedin', 
@@ -22,7 +22,11 @@ export const socialMediaSchema = z.object({
         'mastodon', 
         'threads',
         'bluesky'
-    ]).optional(),
+    ])).default([]),
+    multiplatform: z.object({
+        message: z.string().optional(),
+        generateWithAI: z.boolean().default(false)
+    }).optional(),
     instagram: z.object({
         message: z.string().optional(),
         generateWithAI: z.boolean().default(false)

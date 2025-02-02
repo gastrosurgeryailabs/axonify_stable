@@ -9,7 +9,15 @@ export async function POST(req: Request) {
             throw new Error("AnythingLLM API key is required");
         }
 
-        const system_prompt = "You are a social media expert who creates engaging Twitter/X posts that drive engagement while being concise and impactful. DO NOT include any placeholder URLs or quiz links - these will be added automatically by the system.";
+        const system_prompt = `You are a social media expert who creates engaging Twitter/X posts that drive engagement while being concise and impactful. 
+${model.toLowerCase().includes('llama') ? `CRITICAL INSTRUCTIONS FOR LLAMA:
+- DO NOT output the actual quiz question
+- DO NOT list multiple choice options
+- DO NOT use A), B), C) format
+- Instead, create an engaging tweet that teases the topic
+- Focus on creating curiosity about the quiz
+- Keep it short and punchy` : ''}
+DO NOT include any placeholder URLs or quiz links - these will be added automatically by the system.`;
         
         const user_prompt = `Generate an engaging tweet for a quiz about ${topic}.
 Quiz Type: ${type === 'mcq' ? 'Multiple Choice' : 'Open Ended'}
@@ -20,10 +28,17 @@ Requirements:
 - Use emojis strategically
 - Include relevant hashtags
 - Make it attention-grabbing
-- Create curiosity
+- Create curiosity WITHOUT revealing quiz questions
 - Add clear call-to-action
 - Maximum 1-2 short sentences
 - Focus on driving engagement
+${model.toLowerCase().includes('llama') ? `
+IMPORTANT FOR LLAMA:
+- DO NOT write out any quiz questions
+- DO NOT list any answer options
+- DO NOT use A), B), C) format
+- Instead, write a tweet that makes people curious about the quiz
+- Example: "🚀 Linux enthusiasts! Ready to test your command-line mastery? Take our quiz and prove your skills! #Linux #OpenSource"` : ''}
 - DO NOT include any placeholder quiz links or URLs
 - DO NOT use phrases like "[Insert Quiz Link]" or similar
 

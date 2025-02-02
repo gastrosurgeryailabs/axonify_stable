@@ -9,8 +9,25 @@ export async function POST(req: Request) {
             throw new Error("AnythingLLM API key is required");
         }
 
-        const system_prompt = "You are a social media expert who creates engaging Instagram captions that drive engagement while maintaining professionalism.";
+        const llamaInstructions = model.toLowerCase().includes('llama') ? 
+            `CRITICAL INSTRUCTIONS FOR LLAMA:
+- DO NOT output the actual quiz questions
+- DO NOT list multiple choice options
+- DO NOT use A), B), C) format
+- Instead, create an engaging caption that teases the topic
+- Focus on creating curiosity about the quiz
+- Keep it engaging and Instagram-friendly` : '';
+
+        const system_prompt = `You are a social media expert who creates engaging Instagram captions that drive engagement while maintaining professionalism. ${llamaInstructions}`;
         
+        const llamaExample = model.toLowerCase().includes('llama') ? 
+            `\nIMPORTANT FOR LLAMA:
+- DO NOT write out any quiz questions
+- DO NOT list any answer options
+- DO NOT use A), B), C) format
+- Instead, write a caption that makes people curious about the quiz
+- Example: "🧠 Calling all Linux enthusiasts! We've crafted the ultimate command-line challenge to test your skills. Are you ready to prove your expertise? 💪\n\n#Linux #Programming #TechQuiz #LearnToCode #OpenSource"` : '';
+
         const user_prompt = `Generate an engaging Instagram post caption for a quiz about ${topic}.
 Quiz Type: ${type === 'mcq' ? 'Multiple Choice' : 'Open Ended'}
 Additional Context: ${userInput || 'None provided'}
@@ -20,9 +37,9 @@ Requirements:
 - Use relevant emojis
 - Include appropriate hashtags
 - Make it Instagram-friendly
-- Encourage participation
+- Encourage participation WITHOUT revealing questions
 - Highlight the quiz topic and type
-- Maximum 2-3 short paragraphs
+- Maximum 2-3 short paragraphs${llamaExample}
 
 Format the response in a way that's ready to be posted on Instagram.`;
 

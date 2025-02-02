@@ -8,7 +8,7 @@ import { useSession } from 'next-auth/react'
 
 type Props = {}
 
-const ADMIN_EMAILS = ['abhaychopada@gmail.com', 'dnyanesh.tech001@gmail.com'];
+const ADMIN_EMAILS = ['abhaychopada@gmail.com', 'dnyanesh.tech001@gmail.com', 'gastrosurgeryai@gmail.com'];
 
 const QuizMeCard = (props: Props) => {
     const router = useRouter();

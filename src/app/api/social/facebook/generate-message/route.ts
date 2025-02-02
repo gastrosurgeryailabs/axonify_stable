@@ -9,8 +9,29 @@ export async function POST(req: Request) {
             throw new Error("AnythingLLM API key is required");
         }
 
-        const system_prompt = "You are a social media expert who creates engaging Facebook posts that drive engagement while maintaining professionalism.";
+        const llamaInstructions = model.toLowerCase().includes('llama') ? 
+            `CRITICAL INSTRUCTIONS FOR LLAMA:
+- DO NOT output the actual quiz questions
+- DO NOT list multiple choice options
+- DO NOT use A), B), C) format
+- Instead, create an engaging Facebook post that teases the topic
+- Focus on creating curiosity about the quiz
+- Keep it conversational and engaging` : '';
+
+        const system_prompt = `You are a social media expert who creates engaging Facebook posts that drive engagement while maintaining professionalism. ${llamaInstructions}`;
         
+        const llamaExample = model.toLowerCase().includes('llama') ? 
+            `\nIMPORTANT FOR LLAMA:
+- DO NOT write out any quiz questions
+- DO NOT list any answer options
+- DO NOT use A), B), C) format
+- Instead, write a post that makes people curious about the quiz
+- Example: "🐧 Calling all Linux enthusiasts! 
+
+Think you know your way around the command line? We've put together an exciting challenge to test your Linux expertise! 
+
+Join our community of tech enthusiasts and see how you stack up. Whether you're a beginner or a seasoned pro, this quiz has something for everyone! 🚀"` : '';
+
         const user_prompt = `Generate an engaging Facebook post for a quiz about ${topic}.
 Quiz Type: ${type === 'mcq' ? 'Multiple Choice' : 'Open Ended'}
 Additional Context: ${userInput || 'None provided'}
@@ -20,8 +41,8 @@ Requirements:
 - Use emojis appropriately
 - Include a clear call-to-action
 - Make it shareable and engaging
-- Add engaging questions to encourage participation
-- Maximum 2-3 short paragraphs
+- Add engaging questions to encourage participation WITHOUT revealing quiz content
+- Maximum 2-3 short paragraphs${llamaExample}
 
 Format the response in a way that's ready to be posted on Facebook.`;
 

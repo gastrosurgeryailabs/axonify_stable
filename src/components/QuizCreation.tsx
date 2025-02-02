@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from './ui/form';
 import { Input } from './ui/input';
-import { BookOpen, CopyCheck } from 'lucide-react';
+import { BookOpen, CopyCheck, RefreshCw, Upload, X } from 'lucide-react';
 import { Separator } from './ui/separator';
 import { Button } from './ui/button';
 import { useMutation } from '@tanstack/react-query';
@@ -32,6 +32,7 @@ import YouTubeSection from './YouTubeSection';
 import MastodonSection from './MastodonSection';
 import ThreadsSection from './ThreadsSection';
 import BlueskySection from './BlueskySection';
+import MultiPlatformSection from './MultiPlatformSection';
 
 type Props = {
     topicParam: string;
@@ -66,6 +67,13 @@ interface WorkspaceResponse {
         openAiHistory: number;
         openAiPrompt: string;
     }>;
+}
+
+// Add new interface for file status
+interface UploadedFileStatus {
+    file: File;
+    status: 'uploading' | 'success' | 'error';
+    error?: string;
 }
 
 const LANGUAGES = [
@@ -164,6 +172,26 @@ const AI_PROVIDERS = {
     ollama: {
         name: "Ollama",
         models: {
+            // DeepSeek models
+            "deepseek-r1-1.5b": 8192,
+            "deepseek-r1-7b": 16384,
+            "deepseek-r1-8b": 16384,
+            "deepseek-r1-14b": 32768,
+            "deepseek-r1-32b": 32768,
+            "deepseek-r1-70b": 65536,
+            "deepseek-r1-671b": 65536,
+            // Llama 3.3 models
+            "llama3.3-70b": 65536,
+            // Phi4 models
+            "phi4-14b": 32768,
+            // Llama 3.2 models
+            "llama3.2-1b": 8192,
+            "llama3.2-3b": 8192,
+            // Llama 3.1 models
+            "llama3.1-8b": 16384,
+            "llama3.1-70b": 65536,
+            "llama3.1-405b": 131072,
+            // Existing models
             "llama2:7b": 8192,    // Minimum 8GB RAM
             "llama2:13b": 16384,  // Minimum 16GB RAM
             "llama2:70b": 32768,  // Minimum 32GB RAM
@@ -215,7 +243,8 @@ const AI_PROVIDERS = {
             "llama3-8b-8192": 8192,
             "llama-3.1-70b-versatile": 8000,
             "llama-3.1-8b-instant": 8000,
-            "mixtral-8x7b-32768": 32768
+            "mixtral-8x7b-32768": 32768,
+            "deepseek-r1-distill-llama-70b": 65536
         }
     },
     deepseek: {
@@ -253,6 +282,9 @@ const QuizCreation = ({topicParam}: Props) => {
     const [isLoadingWorkspaces, setIsLoadingWorkspaces] = React.useState(false);
     const [isCreatingWorkspace, setIsCreatingWorkspace] = React.useState(false);
     const [isInitializing, setIsInitializing] = React.useState(false);
+    const [uploadedFiles, setUploadedFiles] = React.useState<UploadedFileStatus[]>([]);
+    const [uploadError, setUploadError] = React.useState<string | null>(null);
+    const [isUploading, setIsUploading] = React.useState(false);
     
     const form = useForm<Input>({
         resolver: zodResolver(quizCreationSchema),
@@ -264,10 +296,10 @@ const QuizCreation = ({topicParam}: Props) => {
             temperature: 0.7,
             model: "",
             prompt: "Generate questions that are clear and engaging. For technical topics, ensure explanations are beginner-friendly. Include real-world examples where applicable.",
-            apiKey: "",
+            apiKey: "EMRA1Q9-DB54WSD-HBGCRS4-E65Y9D3",
             completionMessage: "Great job on completing the quiz!",
             socialMedia: {
-                selectedPlatform: undefined,
+                selectedPlatforms: [],
             },
             initialized: false,
             gameId: undefined
@@ -486,6 +518,104 @@ const QuizCreation = ({topicParam}: Props) => {
         } finally {
             setIsInitializing(false);
         }
+    };
+
+    const handleReinitialize = () => {
+        form.setValue('initialized', false);
+        form.setValue('gameId', undefined);
+        toast({
+            title: "Quiz Reset",
+            description: "You can now initialize a new quiz.",
+        });
+    };
+
+    const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const files = event.target.files;
+        if (!files || files.length === 0) return;
+
+        setIsUploading(true);
+        setUploadError(null);
+
+        try {
+            const selectedWorkspace = workspaces.find(w => w.model === form.getValues('model'));
+            if (!selectedWorkspace) {
+                throw new Error('No workspace selected');
+            }
+
+            const apiKey = form.getValues('apiKey');
+            if (!apiKey) {
+                throw new Error('API key is required');
+            }
+
+            // Initialize file statuses
+            const newFiles = Array.from(files).map(file => ({
+                file,
+                status: 'uploading' as const
+            }));
+            setUploadedFiles(prev => [...prev, ...newFiles]);
+
+            // Upload and embed each file
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const formData = new FormData();
+                formData.append('file', file);
+
+                console.log('Uploading and embedding file:', file.name, 'to workspace:', selectedWorkspace.model);
+                
+                try {
+                    const response = await fetch(`${process.env.NEXT_PUBLIC_ANYTHING_LLM_URL || 'http://localhost:3001'}/api/workspace/${selectedWorkspace.model}/upload-and-embed`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${apiKey}`,
+                        },
+                        body: formData
+                    });
+
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error('Upload and embed response:', errorText);
+                        throw new Error(`Failed to process file ${file.name}`);
+                    }
+
+                    const result = await response.json();
+                    console.log('Upload and embed result:', result);
+
+                    // Update success status for this file
+                    setUploadedFiles(prev => prev.map((f, index) => 
+                        f.file === file ? { ...f, status: 'success' as const } : f
+                    ));
+                } catch (error) {
+                    // Update error status for this file
+                    setUploadedFiles(prev => prev.map((f, index) => 
+                        f.file === file ? { 
+                            ...f, 
+                            status: 'error' as const, 
+                            error: error instanceof Error ? error.message : 'Failed to process file'
+                        } : f
+                    ));
+                }
+            }
+
+            toast({
+                title: "Upload Complete",
+                description: `Finished processing ${files.length} file(s)`,
+            });
+        } catch (error) {
+            console.error('Process error:', error);
+            setUploadError(error instanceof Error ? error.message : 'Failed to process files');
+            toast({
+                title: "Error",
+                description: error instanceof Error ? error.message : "Failed to process files",
+                variant: "destructive",
+            });
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    const removeFile = (fileToRemove: File) => {
+        setUploadedFiles(prev => prev.filter(f => f.file !== fileToRemove));
+        setUploadError(null);
     };
 
     async function onSubmit(input: Input) {
@@ -821,6 +951,76 @@ const QuizCreation = ({topicParam}: Props) => {
                                 </div>
                             </div>
 
+                            {/* Upload Attachments Section */}
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <div className="flex flex-col">
+                                        <label className="text-sm font-medium leading-none mb-2">
+                                            Upload Attachments
+                                        </label>
+                                        <div className="space-y-2">
+                                            <input
+                                                type="file"
+                                                id="file-upload"
+                                                className="hidden"
+                                                onChange={handleFileUpload}
+                                                accept=".pdf,.txt,.md,.doc,.docx"
+                                                multiple
+                                            />
+                                            <div className="flex flex-col gap-2">
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    onClick={() => document.getElementById('file-upload')?.click()}
+                                                    className="w-full"
+                                                    disabled={!form.watch('model') || form.watch('model') === 'new' || isUploading}
+                                                >
+                                                    <Upload className="h-4 w-4 mr-2" />
+                                                    {isUploading ? "Processing..." : "Select Files"}
+                                                </Button>
+                                                {uploadedFiles.length > 0 && (
+                                                    <div className="space-y-1">
+                                                        {uploadedFiles.map((fileStatus, index) => (
+                                                            <div key={index} className="flex items-center justify-between bg-muted rounded-md p-2">
+                                                                <div className="flex items-center space-x-2 flex-1 min-w-0">
+                                                                    <span className="text-sm truncate flex-1">
+                                                                        {fileStatus.file.name}
+                                                                    </span>
+                                                                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                                                        fileStatus.status === 'uploading' ? 'bg-blue-100 text-blue-700' :
+                                                                        fileStatus.status === 'success' ? 'bg-green-100 text-green-700' :
+                                                                        'bg-red-100 text-red-700'
+                                                                    }`}>
+                                                                        {fileStatus.status === 'uploading' ? 'Uploading...' :
+                                                                         fileStatus.status === 'success' ? 'Uploaded' :
+                                                                         'Failed'}
+                                                                    </span>
+                                                                </div>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={() => removeFile(fileStatus.file)}
+                                                                    className="h-8 w-8 p-0 ml-2"
+                                                                >
+                                                                    <X className="h-4 w-4" />
+                                                                </Button>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                {uploadError && (
+                                                    <p className="text-sm text-destructive">{uploadError}</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <p className="text-sm text-muted-foreground mt-2">
+                                            Upload documents (.pdf, .txt, .md, .doc, .docx) to be used as context for quiz generation.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
                             {form.watch('model') === 'new' && (
                                 <div className="space-y-4 border rounded-lg p-4">
                                     <h3 className="text-lg font-semibold">Create New Workspace</h3>
@@ -970,14 +1170,26 @@ const QuizCreation = ({topicParam}: Props) => {
                                     <div className="text-sm text-muted-foreground">
                                         <p>Initialize your quiz to generate a shareable link. This link will be automatically included in your social media posts.</p>
                                     </div>
-                                    <Button
-                                        type="button"
-                                        onClick={handleInitialize}
-                                        disabled={isInitializing || form.watch('initialized')}
-                                        className="w-full"
-                                    >
-                                        {isInitializing ? "Initializing..." : form.watch('initialized') ? "Quiz Initialized" : "Initialize Quiz"}
-                                    </Button>
+                                    <div className="flex gap-2">
+                                        <Button
+                                            type="button"
+                                            onClick={handleInitialize}
+                                            disabled={isInitializing || form.watch('initialized')}
+                                            className="flex-1"
+                                        >
+                                            {isInitializing ? "Initializing..." : form.watch('initialized') ? "Quiz Initialized" : "Initialize Quiz"}
+                                        </Button>
+                                        {form.watch('initialized') && (
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                onClick={handleReinitialize}
+                                                className="px-3"
+                                            >
+                                                <RefreshCw className="h-4 w-4" />
+                                            </Button>
+                                        )}
+                                    </div>
                                     {form.watch('initialized') && form.watch('gameId') && (
                                         <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-4">
                                             <h4 className="font-semibold text-base mb-2">Shareable Quiz Link</h4>
@@ -1018,35 +1230,46 @@ const QuizCreation = ({topicParam}: Props) => {
                                     <h3 className="text-lg font-medium">Social Media</h3>
                                 </div>
                                 <PlatformSelector form={form} />
-                                {form.watch("socialMedia.selectedPlatform") === 'instagram' && (
-                                    <InstagramSection form={form} />
+                                
+                                {/* Show MultiPlatformSection when multiple platforms are selected */}
+                                {form.watch("socialMedia.selectedPlatforms")?.length > 1 && (
+                                    <MultiPlatformSection form={form} />
                                 )}
-                                {form.watch("socialMedia.selectedPlatform") === 'facebook' && (
-                                    <FacebookSection form={form} />
-                                )}
-                                {form.watch("socialMedia.selectedPlatform") === 'linkedin' && (
-                                    <LinkedInSection form={form} />
-                                )}
-                                {form.watch("socialMedia.selectedPlatform") === 'twitter' && (
-                                    <TwitterSection form={form} />
-                                )}
-                                {form.watch("socialMedia.selectedPlatform") === 'tiktok' && (
-                                    <TikTokSection form={form} />
-                                )}
-                                {form.watch("socialMedia.selectedPlatform") === 'pinterest' && (
-                                    <PinterestSection form={form} />
-                                )}
-                                {form.watch("socialMedia.selectedPlatform") === 'youtube' && (
-                                    <YouTubeSection form={form} />
-                                )}
-                                {form.watch("socialMedia.selectedPlatform") === 'mastodon' && (
-                                    <MastodonSection form={form} />
-                                )}
-                                {form.watch("socialMedia.selectedPlatform") === 'threads' && (
-                                    <ThreadsSection form={form} />
-                                )}
-                                {form.watch("socialMedia.selectedPlatform") === 'bluesky' && (
-                                    <BlueskySection form={form} />
+
+                                {/* Show individual platform sections when only one platform is selected */}
+                                {form.watch("socialMedia.selectedPlatforms")?.length === 1 && (
+                                    <>
+                                        {form.watch("socialMedia.selectedPlatforms")[0] === 'instagram' && (
+                                            <InstagramSection form={form} />
+                                        )}
+                                        {form.watch("socialMedia.selectedPlatforms")[0] === 'facebook' && (
+                                            <FacebookSection form={form} />
+                                        )}
+                                        {form.watch("socialMedia.selectedPlatforms")[0] === 'linkedin' && (
+                                            <LinkedInSection form={form} />
+                                        )}
+                                        {form.watch("socialMedia.selectedPlatforms")[0] === 'twitter' && (
+                                            <TwitterSection form={form} />
+                                        )}
+                                        {form.watch("socialMedia.selectedPlatforms")[0] === 'tiktok' && (
+                                            <TikTokSection form={form} />
+                                        )}
+                                        {form.watch("socialMedia.selectedPlatforms")[0] === 'pinterest' && (
+                                            <PinterestSection form={form} />
+                                        )}
+                                        {form.watch("socialMedia.selectedPlatforms")[0] === 'youtube' && (
+                                            <YouTubeSection form={form} />
+                                        )}
+                                        {form.watch("socialMedia.selectedPlatforms")[0] === 'mastodon' && (
+                                            <MastodonSection form={form} />
+                                        )}
+                                        {form.watch("socialMedia.selectedPlatforms")[0] === 'threads' && (
+                                            <ThreadsSection form={form} />
+                                        )}
+                                        {form.watch("socialMedia.selectedPlatforms")[0] === 'bluesky' && (
+                                            <BlueskySection form={form} />
+                                        )}
+                                    </>
                                 )}
                             </div>
 
@@ -1056,7 +1279,7 @@ const QuizCreation = ({topicParam}: Props) => {
                                     className="w-full"
                                     disabled={isPending || isCreatingWorkspace || !form.watch('initialized')}
                                 >
-                                    {isCreatingWorkspace ? "Creating Workspace..." : "Create Quiz"}
+                                    {isCreatingWorkspace ? "Creating Workspace..." : "Start Quiz"}
                                 </Button>
                             </div>
                         </form>
