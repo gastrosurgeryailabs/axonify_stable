@@ -1,14 +1,18 @@
+// Keeping Supabase configuration for future reference
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = 'https://iwjqlyvsakfjvosiuktf.supabase.co'
-const supabaseKey = process.env.SUPABASE_KEY
-// const supabase = createClient(supabaseUrl, supabaseKey)
+// Supabase Configuration (commented out as we're using direct PostgreSQL now)
+// const supabaseUrl = 'https://iwjqlyvsakfjvosiuktf.supabase.co'
+// const supabaseKey = process.env.SUPABASE_KEY
 
 // const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 // const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_KEY;
 
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('supabaseUrl and supabaseKey are required.');
-}
+// if (!supabaseUrl || !supabaseKey) {
+//   throw new Error('supabaseUrl and supabaseKey are required.');
+// }
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+// export const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Placeholder for direct PostgreSQL client if needed
+// You can remove this comment and add direct PostgreSQL client configuration here
