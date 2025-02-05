@@ -15,45 +15,52 @@ export async function POST(req: Request, res: Response) {
             );
         }
 
-        const body = await req.json();
-        const { amount, topic, type, targetLanguage, prompt, model, apiKey, completionMessage, serverUrl } = quizCreationSchema.parse(body);
+        console.log("Session validated successfully");
 
+        const body = await req.json();
+        console.log("Received request body:", body);
+
+        const { amount, topic, type, targetLanguage, prompt, model, apiKey, completionMessage, serverUrl } = quizCreationSchema.parse(body);
+        console.log("Request body validated successfully");
         console.log("Game API received model:", model);
         console.log("Creating game with:", { amount, topic, type, targetLanguage, prompt, model });
 
-            // Make request to AnythingLLM API for questions
-            const apiUrl = serverUrl.endsWith('/') ? serverUrl.slice(0, -1) : serverUrl;
-            const response = await fetch(`${apiUrl}/api/v1/openai/chat/completions`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`
-                },
-                body: JSON.stringify({
-                    messages: [
-                        {
-                            role: "system",
-                            content: `You are a quiz generator. Return only a single JSON array without any additional text, markdown, or explanation. The response must be a single array containing all questions, like this exact format: [{"question": "First question", "options": ["A", "B", "C", "D"], "answer": "A"}, {"question": "Second question", "options": ["W", "X", "Y", "Z"], "answer": "Z"}]. For MCQ questions: each question needs "question" (string), "options" (array of exactly 4 strings), and "answer" (string matching one option). For open-ended: each needs "question" and "answer" (both strings).`
-                        },
-                        {
-                            role: "user",
-                            content: `Generate ${amount} ${type === 'mcq' ? 'multiple choice' : 'open ended'} questions about ${topic}.\n\nRequirements: ${prompt}`
-                        }
-                    ],
-                    model,
-                    temperature: 0.7,
-                    stream: false
-                })
-            });
+        // Make request to AnythingLLM API for questions
+        const apiUrl = serverUrl.endsWith('/') ? serverUrl.slice(0, -1) : serverUrl;
+        console.log("Making request to AnythingLLM API at:", apiUrl);
+        const response = await fetch(`${apiUrl}/api/v1/openai/chat/completions`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                messages: [
+                    {
+                        role: "system",
+                        content: `You are a quiz generator. Return only a single JSON array without any additional text, markdown, or explanation. The response must be a single array containing all questions, like this exact format: [{"question": "First question", "options": ["A", "B", "C", "D"], "answer": "A"}, {"question": "Second question", "options": ["W", "X", "Y", "Z"], "answer": "Z"}]. For MCQ questions: each question needs "question" (string), "options" (array of exactly 4 strings), and "answer" (string matching one option). For open-ended: each needs "question" and "answer" (both strings).`
+                    },
+                    {
+                        role: "user",
+                        content: `Generate ${amount} ${type === 'mcq' ? 'multiple choice' : 'open ended'} questions about ${topic}.\n\nRequirements: ${prompt}`
+                    }
+                ],
+                model,
+                temperature: 0.7,
+                stream: false
+            })
+        });
 
-            if (!response.ok) {
-                throw new Error(`AnythingLLM API returned ${response.status}: ${response.statusText}`);
-            }
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error("AnythingLLM API error response:", errorText);
+            throw new Error(`AnythingLLM API returned ${response.status}: ${response.statusText}. Details: ${errorText}`);
+        }
 
-            const data = await response.json();
-            if (!data?.choices?.[0]?.message?.content) {
-                throw new Error('Invalid response format from AnythingLLM');
-            }
+        const data = await response.json();
+        if (!data?.choices?.[0]?.message?.content) {
+            throw new Error('Invalid response format from AnythingLLM');
+        }
 
         const content = data.choices[0].message.content;
         console.log('Raw AI response:', content);
@@ -150,73 +157,80 @@ export async function POST(req: Request, res: Response) {
         }
 
         // Create game and questions in database
-            const game = await prisma.$transaction(async (tx) => {
-                const newGame = await tx.game.create({
-                    data: {
-                        topic,
-                        gameType: type,
-                        timeStarted: new Date(),
-                        userId: session.user.id,
-                        completionMessage,
-                    },
-                });
+        const game = await prisma.$transaction(async (tx) => {
+            const newGame = await tx.game.create({
+                data: {
+                    topic,
+                    gameType: type,
+                    timeStarted: new Date(),
+                    userId: session.user.id,
+                    completionMessage,
+                },
+            });
 
-                console.log("Game created:", newGame.id);
+            console.log("Game created:", newGame.id);
 
-                // Update topic count
-                await tx.topic_count.upsert({
-                    where: { topic },
-                    create: {
-                        topic,
-                        count: 1
-                    },
-                    update: {
-                        count: {
-                            increment: 1
-                        }
+            // Update topic count
+            await tx.topic_count.upsert({
+                where: { topic },
+                create: {
+                    topic,
+                    count: 1
+                },
+                update: {
+                    count: {
+                        increment: 1
                     }
-                });
+                }
+            });
 
-                console.log("Topic count updated");
+            console.log("Topic count updated");
 
-                if (type === "mcq") {
+            if (type === "mcq") {
                 const manyData = parsedQuestions.map((question: any) => ({
-                            question: question.question,
-                            answer: question.answer,
+                    question: question.question,
+                    answer: question.answer,
                     options: JSON.stringify(question.options),
-                            gameId: newGame.id,
-                            questionType: type,
+                    gameId: newGame.id,
+                    questionType: type,
                 }));
 
-                    await tx.question.createMany({
-                        data: manyData
-                    });
-                    console.log("MCQ questions created");
-                } else if (type === 'open_ended') {
+                await tx.question.createMany({
+                    data: manyData
+                });
+                console.log("MCQ questions created");
+            } else if (type === 'open_ended') {
                 const manyData = parsedQuestions.map((question: any) => ({
-                        question: question.question,
-                        answer: question.answer,
-                        gameId: newGame.id,
-                        questionType: type,
-                    }));
+                    question: question.question,
+                    answer: question.answer,
+                    gameId: newGame.id,
+                    questionType: type,
+                }));
 
-                    await tx.question.createMany({
-                        data: manyData
-                    });
-                    console.log("Open-ended questions created");
-                }
+                await tx.question.createMany({
+                    data: manyData
+                });
+                console.log("Open-ended questions created");
+            }
 
-                return newGame;
-            });
+            return newGame;
+        });
 
-            return NextResponse.json({
-                gameId: game.id
-            });
+        return NextResponse.json({
+            gameId: game.id
+        });
 
     } catch (error) {
-        console.error("Game creation failed:", error);
+        console.error("Game creation failed. Full error:", error);
+        if (error instanceof ZodError) {
+            console.error("Validation error:", error.errors);
+            return NextResponse.json(
+                { error: "Invalid request data", details: error.errors },
+                { status: 400 }
+            );
+        }
         return NextResponse.json(
-            { error: error instanceof Error ? error.message : "An unexpected error occurred" },
+            { error: error instanceof Error ? error.message : "An unexpected error occurred", details: error },
             { status: 500 }
         );
     }
