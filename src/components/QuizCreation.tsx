@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from './ui/form';
 import { Input } from './ui/input';
-import { BookOpen, CopyCheck, RefreshCw, Upload, X } from 'lucide-react';
+import { BookOpen, CopyCheck, RefreshCw, Upload, X, Loader2, Info } from 'lucide-react';
 import { Separator } from './ui/separator';
 import { Button } from './ui/button';
 import { useMutation } from '@tanstack/react-query';
@@ -33,6 +33,9 @@ import MastodonSection from './MastodonSection';
 import ThreadsSection from './ThreadsSection';
 import BlueskySection from './BlueskySection';
 import MultiPlatformSection from './MultiPlatformSection';
+import { setAnythingLLMUrl } from '@/lib/gpt';
+import UploadAttachments from './UploadAttachments';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from './ui/hover-card';
 
 type Props = {
     topicParam: string;
@@ -67,13 +70,6 @@ interface WorkspaceResponse {
         openAiHistory: number;
         openAiPrompt: string;
     }>;
-}
-
-// Add new interface for file status
-interface UploadedFileStatus {
-    file: File;
-    status: 'uploading' | 'success' | 'error';
-    error?: string;
 }
 
 const LANGUAGES = [
@@ -282,9 +278,10 @@ const QuizCreation = ({topicParam}: Props) => {
     const [isLoadingWorkspaces, setIsLoadingWorkspaces] = React.useState(false);
     const [isCreatingWorkspace, setIsCreatingWorkspace] = React.useState(false);
     const [isInitializing, setIsInitializing] = React.useState(false);
-    const [uploadedFiles, setUploadedFiles] = React.useState<UploadedFileStatus[]>([]);
-    const [uploadError, setUploadError] = React.useState<string | null>(null);
-    const [isUploading, setIsUploading] = React.useState(false);
+    const [isCheckingConnection, setIsCheckingConnection] = React.useState(false);
+    const [connectionStatus, setConnectionStatus] = React.useState<'connected' | 'disconnected' | null>(null);
+    const [isCheckingUploadConnection, setIsCheckingUploadConnection] = React.useState(false);
+    const [uploadConnectionStatus, setUploadConnectionStatus] = React.useState<'connected' | 'disconnected' | null>(null);
     
     const form = useForm<Input>({
         resolver: zodResolver(quizCreationSchema),
@@ -296,7 +293,9 @@ const QuizCreation = ({topicParam}: Props) => {
             temperature: 0.7,
             model: "",
             prompt: "Generate questions that are clear and engaging. For technical topics, ensure explanations are beginner-friendly. Include real-world examples where applicable.",
-            apiKey: "EMRA1Q9-DB54WSD-HBGCRS4-E65Y9D3",
+            apiKey: "",
+            serverUrl: "",
+            uploadServerUrl: "",
             completionMessage: "Great job on completing the quiz!",
             socialMedia: {
                 selectedPlatforms: [],
@@ -306,11 +305,87 @@ const QuizCreation = ({topicParam}: Props) => {
         }
     });
 
-    // Function to fetch available workspaces
+    // Watch for server URL changes
+    const serverUrl = form.watch('serverUrl');
+    useEffect(() => {
+        if (serverUrl && serverUrl.length > 0 && connectionStatus === 'connected') {
+            setAnythingLLMUrl(serverUrl);
+        }
+    }, [serverUrl, connectionStatus]);
+
+    // Watch for API key changes
+    const apiKey = form.watch('apiKey');
+    useEffect(() => {
+        if (apiKey && apiKey.length > 0 && connectionStatus === 'connected') {
+            fetchWorkspaces(apiKey);
+        }
+    }, [apiKey, connectionStatus]);
+
+    const checkServerConnection = async (serverUrl: string) => {
+        try {
+            setIsCheckingConnection(true);
+            const response = await fetch(`${serverUrl}/api/ping`);
+            if (response.ok) {
+                setConnectionStatus('connected');
+                setAnythingLLMUrl(serverUrl);
+                toast({
+                    title: "Success",
+                    description: "Successfully connected to AnythingLLM server",
+                });
+                // If API key is already present, fetch workspaces
+                const currentApiKey = form.getValues('apiKey');
+                if (currentApiKey) {
+                    fetchWorkspaces(currentApiKey);
+                }
+            } else {
+                setConnectionStatus('disconnected');
+                toast({
+                    title: "Connection Failed",
+                    description: "Could not connect to AnythingLLM server. Please check the URL.",
+                    variant: "destructive",
+                });
+            }
+        } catch (error) {
+            setConnectionStatus('disconnected');
+            toast({
+                title: "Connection Failed",
+                description: "Could not connect to AnythingLLM server. Please check the URL.",
+                variant: "destructive",
+            });
+        } finally {
+            setIsCheckingConnection(false);
+        }
+    };
+
+    const disconnectServer = () => {
+        setConnectionStatus('disconnected');
+        form.setValue('serverUrl', '');
+        setWorkspaces([]); // Clear workspaces when disconnecting
+        toast({
+            title: "Disconnected",
+            description: "Disconnected from AnythingLLM server",
+        });
+    };
+
+    // Add validation for AnythingLLM sections
+    const isAnythingLLMConfigValid = () => {
+        return connectionStatus === 'connected' && form.getValues('apiKey')?.length > 0;
+    };
+
+    // Update fetchWorkspaces to check connection status
     const fetchWorkspaces = async (apiKey: string) => {
+        if (!isAnythingLLMConfigValid()) {
+            toast({
+                title: "Error",
+                description: "Please connect to AnythingLLM server first and provide an API key",
+                variant: "destructive",
+            });
+            return;
+        }
+
         try {
             setIsLoadingWorkspaces(true);
-            const response = await fetch(`${process.env.NEXT_PUBLIC_ANYTHING_LLM_URL || 'http://localhost:3001'}/api/v1/workspaces`, {
+            const response = await fetch(`${form.getValues('serverUrl')}/api/v1/workspaces`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${apiKey}`,
@@ -325,13 +400,11 @@ const QuizCreation = ({topicParam}: Props) => {
             }
 
             const data = await response.json() as WorkspaceResponse;
-            console.log('Fetched workspaces:', data);
             
             if (!data.workspaces || !Array.isArray(data.workspaces)) {
                 throw new Error('Invalid response format from server');
             }
 
-            // Transform the workspace data to match our expected format
             const transformedWorkspaces: Workspace[] = data.workspaces.map((workspace) => ({
                 name: workspace.name,
                 model: workspace.slug,
@@ -341,30 +414,25 @@ const QuizCreation = ({topicParam}: Props) => {
                 }
             }));
 
-            console.log('Transformed workspaces:', transformedWorkspaces);
             setWorkspaces(transformedWorkspaces);
-            
-            // Set the first workspace as default if available
-            if (transformedWorkspaces.length > 0) {
-                form.setValue('model', transformedWorkspaces[0].model);
-            }
         } catch (error) {
             console.error('Error fetching workspaces:', error);
             toast({
                 title: "Error",
-                description: error instanceof Error ? error.message : "Failed to fetch workspaces. Please check your API key.",
+                description: error instanceof Error ? error.message : "Failed to fetch workspaces",
                 variant: "destructive",
             });
+            setWorkspaces([]);
         } finally {
             setIsLoadingWorkspaces(false);
         }
     };
 
-    // Function to create a new workspace
+    // Update createWorkspace to use the server URL from form
     const createWorkspace = async (workspaceData: any, apiKey: string) => {
         try {
             setIsCreatingWorkspace(true);
-            const response = await fetch(`${process.env.ANYTHING_LLM_URL || 'http://localhost:3001'}/api/v1/workspace/new`, {
+            const response = await fetch(`${form.getValues('serverUrl')}/api/v1/workspace/new`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${apiKey}`,
@@ -398,21 +466,13 @@ const QuizCreation = ({topicParam}: Props) => {
             console.error('Error creating workspace:', error);
             toast({
                 title: "Error",
-                description: error instanceof Error ? error.message : "Failed to create workspace. Please try again.",
+                description: error instanceof Error ? error.message : "Failed to create workspace",
                 variant: "destructive",
             });
         } finally {
             setIsCreatingWorkspace(false);
         }
     };
-
-    // Watch for API key changes
-    const apiKey = form.watch('apiKey');
-    useEffect(() => {
-        if (apiKey && apiKey.length > 0) {
-            fetchWorkspaces(apiKey);
-        }
-    }, [apiKey]);
 
     const { mutate: getQuestions, isPending } = useMutation({
         mutationFn: async (input: Input) => {
@@ -529,96 +589,61 @@ const QuizCreation = ({topicParam}: Props) => {
         });
     };
 
-    const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const files = event.target.files;
-        if (!files || files.length === 0) return;
-
-        setIsUploading(true);
-        setUploadError(null);
-
+    // Add new function to check upload server connection
+    const checkUploadServerConnection = async (uploadServerUrl: string) => {
         try {
-            const selectedWorkspace = workspaces.find(w => w.model === form.getValues('model'));
-            if (!selectedWorkspace) {
-                throw new Error('No workspace selected');
+            setIsCheckingUploadConnection(true);
+            const response = await fetch(`${uploadServerUrl}/api/ping`);
+            if (response.ok) {
+                setUploadConnectionStatus('connected');
+                toast({
+                    title: "Success",
+                    description: "Successfully connected to upload server",
+                });
+            } else {
+                setUploadConnectionStatus('disconnected');
+                toast({
+                    title: "Connection Failed",
+                    description: "Could not connect to upload server. Please check the URL.",
+                    variant: "destructive",
+                });
             }
-
-            const apiKey = form.getValues('apiKey');
-            if (!apiKey) {
-                throw new Error('API key is required');
-            }
-
-            // Initialize file statuses
-            const newFiles = Array.from(files).map(file => ({
-                file,
-                status: 'uploading' as const
-            }));
-            setUploadedFiles(prev => [...prev, ...newFiles]);
-
-            // Upload and embed each file
-            for (let i = 0; i < files.length; i++) {
-                const file = files[i];
-                const formData = new FormData();
-                formData.append('file', file);
-
-                console.log('Uploading and embedding file:', file.name, 'to workspace:', selectedWorkspace.model);
-                
-                try {
-                    const response = await fetch(`${process.env.NEXT_PUBLIC_ANYTHING_LLM_URL || 'http://localhost:3001'}/api/workspace/${selectedWorkspace.model}/upload-and-embed`, {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${apiKey}`,
-                        },
-                        body: formData
-                    });
-
-                    if (!response.ok) {
-                        const errorText = await response.text();
-                        console.error('Upload and embed response:', errorText);
-                        throw new Error(`Failed to process file ${file.name}`);
-                    }
-
-                    const result = await response.json();
-                    console.log('Upload and embed result:', result);
-
-                    // Update success status for this file
-                    setUploadedFiles(prev => prev.map((f, index) => 
-                        f.file === file ? { ...f, status: 'success' as const } : f
-                    ));
-                } catch (error) {
-                    // Update error status for this file
-                    setUploadedFiles(prev => prev.map((f, index) => 
-                        f.file === file ? { 
-                            ...f, 
-                            status: 'error' as const, 
-                            error: error instanceof Error ? error.message : 'Failed to process file'
-                        } : f
-                    ));
-                }
-            }
-
-            toast({
-                title: "Upload Complete",
-                description: `Finished processing ${files.length} file(s)`,
-            });
         } catch (error) {
-            console.error('Process error:', error);
-            setUploadError(error instanceof Error ? error.message : 'Failed to process files');
+            setUploadConnectionStatus('disconnected');
             toast({
-                title: "Error",
-                description: error instanceof Error ? error.message : "Failed to process files",
+                title: "Connection Failed",
+                description: "Could not connect to upload server. Please check the URL.",
                 variant: "destructive",
             });
         } finally {
-            setIsUploading(false);
+            setIsCheckingUploadConnection(false);
         }
     };
 
-    const removeFile = (fileToRemove: File) => {
-        setUploadedFiles(prev => prev.filter(f => f.file !== fileToRemove));
-        setUploadError(null);
+    const disconnectUploadServer = () => {
+        setUploadConnectionStatus('disconnected');
+        form.setValue('uploadServerUrl', '');
+        toast({
+            title: "Disconnected",
+            description: "Disconnected from upload server",
+        });
+    };
+
+    // Update file upload validation
+    const isUploadServerConfigValid = () => {
+        return uploadConnectionStatus === 'connected' && form.getValues('uploadServerUrl')?.length > 0;
     };
 
     async function onSubmit(input: Input) {
+        if (!isAnythingLLMConfigValid()) {
+            toast({
+                title: "Error",
+                description: "Please ensure you are connected to AnythingLLM server and have provided an API key",
+                variant: "destructive",
+            });
+            return;
+        }
+
         console.log("Form submitted with raw input:", input);
         
         try {
@@ -831,26 +856,96 @@ const QuizCreation = ({topicParam}: Props) => {
                                 </div>
                             </div>
 
-                            <FormField
-                                control={form.control}
-                                name="apiKey"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>AnythingLLM API Key</FormLabel>
-                                        <FormControl>
-                                            <Input 
-                                                type="password"
-                                                placeholder="Enter your AnythingLLM API key..." 
-                                                {...field} 
-                                            />
-                                        </FormControl>
-                                        <FormDescription>
-                                            Your AnythingLLM API key for generating quiz questions. This will be used securely and not stored.
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
+                            <div className="space-y-4">
+                                <FormField
+                                    control={form.control}
+                                    name="serverUrl"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <div className="flex items-center gap-2">
+                                                <FormLabel>AnythingLLM Server URL</FormLabel>
+                                                <HoverCard>
+                                                    <HoverCardTrigger>
+                                                        <Info className="h-4 w-4 text-muted-foreground" />
+                                                    </HoverCardTrigger>
+                                                    <HoverCardContent className="w-80">
+                                                        <div className="space-y-2">
+                                                            <p className="text-sm">
+                                                                If you're testing through your local AnythingLLM server, to start the server, please run from the root dir:
+                                                            </p>
+                                                            <code className="text-sm bg-muted p-2 rounded-md block">
+                                                                cd server && yarn dev
+                                                            </code>
+                                                        </div>
+                                                    </HoverCardContent>
+                                                </HoverCard>
+                                            </div>
+                                            <FormControl>
+                                                <div className="flex gap-2">
+                                                    <Input 
+                                                        placeholder="Enter AnythingLLM server URL..." 
+                                                        {...field} 
+                                                        disabled={connectionStatus === 'connected'}
+                                                    />
+                                                    {connectionStatus === 'connected' ? (
+                                                        <Button
+                                                            type="button"
+                                                            variant="destructive"
+                                                            onClick={disconnectServer}
+                                                            className="min-w-[100px]"
+                                                        >
+                                                            Disconnect
+                                                        </Button>
+                                                    ) : (
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            onClick={() => checkServerConnection(field.value)}
+                                                            disabled={isCheckingConnection || !field.value}
+                                                            className="min-w-[100px]"
+                                                        >
+                                                            {isCheckingConnection ? (
+                                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                            ) : 'Connect'}
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            </FormControl>
+                                            <FormDescription>
+                                                Enter the URL of your AnythingLLM server
+                                                {connectionStatus === 'connected' && (
+                                                    <span className="text-green-500 ml-2">✓ Connected</span>
+                                                )}
+                                                {connectionStatus === 'disconnected' && (
+                                                    <span className="text-red-500 ml-2">× Not connected</span>
+                                                )}
+                                            </FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+
+                                <FormField
+                                    control={form.control}
+                                    name="apiKey"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>AnythingLLM API Key</FormLabel>
+                                            <FormControl>
+                                                <Input 
+                                                    type="password"
+                                                    placeholder="Enter your AnythingLLM API key..." 
+                                                    {...field} 
+                                                />
+                                            </FormControl>
+                                            <FormDescription>
+                                                Your AnythingLLM API key for generating quiz questions. This will be used securely and not stored.
+                                            </FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
 
                             <div className="flex gap-4">
                                 <div className="flex-1">
@@ -951,75 +1046,83 @@ const QuizCreation = ({topicParam}: Props) => {
                                 </div>
                             </div>
 
-                            {/* Upload Attachments Section */}
-                            <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <div className="flex flex-col">
-                                        <label className="text-sm font-medium leading-none mb-2">
-                                            Upload Attachments
-                                        </label>
-                                        <div className="space-y-2">
-                                            <input
-                                                type="file"
-                                                id="file-upload"
-                                                className="hidden"
-                                                onChange={handleFileUpload}
-                                                accept=".pdf,.txt,.md,.doc,.docx"
-                                                multiple
-                                            />
-                                            <div className="flex flex-col gap-2">
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    onClick={() => document.getElementById('file-upload')?.click()}
-                                                    className="w-full"
-                                                    disabled={!form.watch('model') || form.watch('model') === 'new' || isUploading}
-                                                >
-                                                    <Upload className="h-4 w-4 mr-2" />
-                                                    {isUploading ? "Processing..." : "Select Files"}
-                                                </Button>
-                                                {uploadedFiles.length > 0 && (
-                                                    <div className="space-y-1">
-                                                        {uploadedFiles.map((fileStatus, index) => (
-                                                            <div key={index} className="flex items-center justify-between bg-muted rounded-md p-2">
-                                                                <div className="flex items-center space-x-2 flex-1 min-w-0">
-                                                                    <span className="text-sm truncate flex-1">
-                                                                        {fileStatus.file.name}
-                                                                    </span>
-                                                                    <span className={`text-xs px-2 py-0.5 rounded-full ${
-                                                                        fileStatus.status === 'uploading' ? 'bg-blue-100 text-blue-700' :
-                                                                        fileStatus.status === 'success' ? 'bg-green-100 text-green-700' :
-                                                                        'bg-red-100 text-red-700'
-                                                                    }`}>
-                                                                        {fileStatus.status === 'uploading' ? 'Uploading...' :
-                                                                         fileStatus.status === 'success' ? 'Uploaded' :
-                                                                         'Failed'}
-                                                                    </span>
-                                                                </div>
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    onClick={() => removeFile(fileStatus.file)}
-                                                                    className="h-8 w-8 p-0 ml-2"
-                                                                >
-                                                                    <X className="h-4 w-4" />
-                                                                </Button>
-                                                            </div>
-                                                        ))}
+                            <FormField
+                                control={form.control}
+                                name="uploadServerUrl"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <div className="flex items-center gap-2">
+                                            <FormLabel>Upload Server URL</FormLabel>
+                                            <HoverCard>
+                                                <HoverCardTrigger>
+                                                    <Info className="h-4 w-4 text-muted-foreground" />
+                                                </HoverCardTrigger>
+                                                <HoverCardContent className="w-80">
+                                                    <div className="space-y-2">
+                                                        <p className="text-sm">
+                                                            If you're testing through your local AnythingLLM server, to start the collector server, please run from the root dir:
+                                                        </p>
+                                                        <code className="text-sm bg-muted p-2 rounded-md block">
+                                                            cd collector && yarn dev
+                                                        </code>
                                                     </div>
-                                                )}
-                                                {uploadError && (
-                                                    <p className="text-sm text-destructive">{uploadError}</p>
+                                                </HoverCardContent>
+                                            </HoverCard>
+                                        </div>
+                                        <FormControl>
+                                            <div className="flex gap-2">
+                                                <Input 
+                                                    placeholder="Enter URL to check if upload server is online..." 
+                                                    {...field} 
+                                                    disabled={uploadConnectionStatus === 'connected'}
+                                                />
+                                                {uploadConnectionStatus === 'connected' ? (
+                                                    <Button
+                                                        type="button"
+                                                        variant="destructive"
+                                                        onClick={disconnectUploadServer}
+                                                        className="min-w-[100px]"
+                                                    >
+                                                        Disconnect
+                                                    </Button>
+                                                ) : (
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        onClick={() => checkUploadServerConnection(field.value)}
+                                                        disabled={isCheckingUploadConnection || !field.value}
+                                                        className="min-w-[100px]"
+                                                    >
+                                                        {isCheckingUploadConnection ? (
+                                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                                        ) : 'Connect'}
+                                                    </Button>
                                                 )}
                                             </div>
-                                        </div>
-                                        <p className="text-sm text-muted-foreground mt-2">
-                                            Upload documents (.pdf, .txt, .md, .doc, .docx) to be used as context for quiz generation.
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
+                                        </FormControl>
+                                        <FormDescription>
+                                            Enter URL to verify if the upload server is online and available
+                                            {uploadConnectionStatus === 'connected' && (
+                                                <span className="text-green-500 ml-2">✓ Connected</span>
+                                            )}
+                                            {uploadConnectionStatus === 'disconnected' && (
+                                                <span className="text-red-500 ml-2">× Not connected</span>
+                                            )}
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            {/* Replace Upload Attachments Section with new component */}
+                            <UploadAttachments 
+                                workspaceModel={form.watch('model')}
+                                apiKey={form.watch('apiKey')}
+                                serverUrl={form.watch('serverUrl')}
+                                uploadServerUrl={form.watch('uploadServerUrl')}
+                                isUploadServerConnected={uploadConnectionStatus === 'connected'}
+                                disabled={form.watch('model') === 'new'}
+                            />
 
                             {form.watch('model') === 'new' && (
                                 <div className="space-y-4 border rounded-lg p-4">

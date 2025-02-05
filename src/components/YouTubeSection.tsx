@@ -47,11 +47,12 @@ const YouTubeSection = ({ form }: YouTubeSectionProps) => {
                                                 userInput: field.value || "",
                                                 apiKey: form.getValues("apiKey"),
                                                 model: form.getValues("model"),
+                                                serverUrl: form.getValues("serverUrl"),
                                                 quizUrl,
                                                 messageType: "direct_link"
                                             });
                                             
-                                            if (response.data.message) {
+                                            if (response.data.success && response.data.message) {
                                                 let message = response.data.message;
                                                 message = message.replace(/^\*\*Description:\*\*\s*/i, '');
                                                 
@@ -70,11 +71,14 @@ const YouTubeSection = ({ form }: YouTubeSectionProps) => {
                                                 }
                                                 
                                                 form.setValue("socialMedia.youtube.message", message);
+                                            } else {
+                                                throw new Error(response.data.error || "Failed to generate video description");
                                             }
                                         } catch (error) {
+                                            console.error("YouTube description generation error:", error);
                                             toast({
                                                 title: "Generation Failed",
-                                                description: "Failed to generate video description. Please try again.",
+                                                description: error instanceof Error ? error.message : "Failed to generate video description. Please try again.",
                                                 variant: "destructive",
                                             });
                                         } finally {

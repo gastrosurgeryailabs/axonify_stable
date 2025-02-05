@@ -1,9 +1,28 @@
+import { NextResponse } from "next/server";
+
 export async function POST(req: Request) {
     try {
-        const { topic, type, userInput, apiKey, model, selectedPlatforms, quizUrl } = await req.json();
+        const { topic, type, userInput, apiKey, model, selectedPlatforms, quizUrl, serverUrl } = await req.json();
 
         if (!apiKey) {
-            throw new Error("AnythingLLM API key is required");
+            return NextResponse.json(
+                { error: "AnythingLLM API key is required", success: false },
+                { status: 401 }
+            );
+        }
+
+        if (!serverUrl) {
+            return NextResponse.json(
+                { error: "AnythingLLM server URL is required", success: false },
+                { status: 401 }
+            );
+        }
+
+        if (!selectedPlatforms || !Array.isArray(selectedPlatforms) || selectedPlatforms.length === 0) {
+            return NextResponse.json(
+                { error: "At least one platform must be selected", success: false },
+                { status: 400 }
+            );
         }
 
         const llamaInstructions = model.toLowerCase().includes('llama') ? 
@@ -11,64 +30,43 @@ export async function POST(req: Request) {
 - DO NOT output the actual quiz questions
 - DO NOT list multiple choice options
 - DO NOT use A), B), C) format
-- Instead, create engaging social media content that teases the topic
+- Instead, create engaging content that teases the topic
 - Focus on creating curiosity about the quiz
-- Keep it conversational and engaging` : '';
+- Keep it conversational and engaging
+- DO NOT use markdown formatting or headers` : '';
 
-        const system_prompt = `You are a social media expert who creates engaging content optimized for different social media platforms. Your task is to generate both a versatile general message and platform-specific messages that follow each platform's best practices. ${llamaInstructions}
+        const system_prompt = `You are a social media expert who creates versatile content that works well across different social media platforms. Your task is to generate a general message that can be adapted for various platforms. ${llamaInstructions}
 
-IMPORTANT: Return ONLY a valid JSON object with a general message and platform-specific messages. Do not include any markdown formatting or explanatory text.`;
-        
-        const llamaExample = model.toLowerCase().includes('llama') ? 
-            `\nIMPORTANT FOR LLAMA:
-- DO NOT write out any quiz questions
-- DO NOT list any answer options
-- DO NOT use A), B), C) format
-- Instead, write content that makes people curious about the quiz` : '';
+IMPORTANT: 
+- Focus on creating content that is adaptable and works well across different platforms
+- Return the message directly without any markdown formatting, headers, or section titles
+- Do not include placeholders like [Quiz Link Will Be Automatically Added Here]`;
 
-        const platformRequirements = {
-            twitter: "280 characters max, hashtags, casual tone",
-            instagram: "Visual-focused, emojis, hashtags, engaging captions",
-            facebook: "Detailed, community-focused, can be longer",
-            linkedin: "Professional tone, industry-relevant hashtags",
-            tiktok: "Very casual, trendy, use trending phrases",
-            pinterest: "Visual inspiration, descriptive",
-            youtube: "Detailed description, good for SEO",
-            mastodon: "500 characters max, community-focused, #Fediverse tag",
-            threads: "Conversational, casual tone",
-            bluesky: "300 characters max, similar to Twitter style"
-        };
-
-        const user_prompt = `Create social media content for a quiz about ${topic}. The quiz type is ${type}.
+        const user_prompt = `Create a versatile social media message for a quiz about ${topic}. The quiz type is ${type}.
+This message should work well across these platforms: ${selectedPlatforms.join(', ')}.
 
 ${userInput ? `Use this input as inspiration: ${userInput}` : ''}
 
-First, create a general message that works well across all platforms.
-Then, create platform-specific messages for: ${selectedPlatforms.join(', ')}.
-
-Platform-specific requirements:
-${selectedPlatforms.map((platform: string) => `- ${platform}: ${platformRequirements[platform as keyof typeof platformRequirements]}`).join('\n')}
-
-General requirements for all messages:
-1. Keep it engaging and shareable
-2. Use emojis appropriately
-3. Include relevant hashtags
-4. Include the quiz URL: ${quizUrl}
+Requirements:
+1. Keep it engaging and shareable across all platforms
+2. Use emojis appropriately (not too many, not too few)
+3. Include relevant hashtags that work on all platforms
+4. Include this exact quiz URL: ${quizUrl}
 5. Make it attention-grabbing
 6. Focus on creating curiosity about the quiz
+7. Keep it adaptable for different platform styles
+8. Avoid platform-specific features or limitations
+9. Use a tone that works everywhere
+10. DO NOT use any markdown formatting or headers
+11. DO NOT use placeholders for the quiz URL
 
-Return ONLY a valid JSON object in this exact format (no markdown, no explanations):
-{
-    "general": "Your general message here",
-    "platforms": {
-        "platform1": "Platform-specific message 1",
-        "platform2": "Platform-specific message 2"
-    }
-}
+The message should be general enough to work on any platform but engaging enough to drive participation.
 
-${llamaExample}`;
+Return ONLY the message content, without any formatting or headers.`;
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_ANYTHING_LLM_URL}/api/v1/openai/chat/completions`, {
+        // Clean up server URL
+        const apiUrl = serverUrl.endsWith('/') ? serverUrl.slice(0, -1) : serverUrl;
+        const response = await fetch(`${apiUrl}/api/v1/openai/chat/completions`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -92,60 +90,61 @@ ${llamaExample}`;
         });
 
         if (!response.ok) {
-            throw new Error(`AnythingLLM API error: ${response.statusText}`);
+            console.error(`AnythingLLM API error: ${response.status} - ${response.statusText}`);
+            return NextResponse.json(
+                { error: `AnythingLLM API returned ${response.status}: ${response.statusText}`, success: false },
+                { status: response.status }
+            );
         }
 
         const data = await response.json();
-        const content = data?.choices?.[0]?.message?.content;
-
-        if (!content) {
-            throw new Error("No content received from AnythingLLM");
+        if (!data?.choices?.[0]?.message?.content) {
+            return NextResponse.json(
+                { error: 'Invalid response format from AnythingLLM', success: false },
+                { status: 500 }
+            );
         }
 
-        // Parse the JSON response
         try {
-            // Clean up the content before parsing
-            let cleanContent = content;
+            const content = data.choices[0].message.content;
             
-            // Remove markdown code block if present
-            cleanContent = cleanContent.replace(/```json\n|\n```/g, '');
-            
-            // Remove any explanatory text before or after the JSON
-            const jsonStart = cleanContent.indexOf('{');
-            const jsonEnd = cleanContent.lastIndexOf('}') + 1;
-            if (jsonStart !== -1 && jsonEnd !== -1) {
-                cleanContent = cleanContent.slice(jsonStart, jsonEnd);
-            }
-
-            const messages = JSON.parse(cleanContent);
-            
-            // Clean up the messages
+            // Enhanced message cleaning
             const cleanMessage = (msg: string) => {
-                let cleaned = msg;
-                // Remove any markdown formatting
-                cleaned = cleaned.replace(/\*\*/g, '');
-                // Remove any "Message:" prefix
-                cleaned = cleaned.replace(/^Message:\s*/i, '');
-                // Trim whitespace
-                cleaned = cleaned.trim();
-                return cleaned;
+                return msg
+                    .replace(/^\*\*[^*]+\*\*\s*/gm, '') // Remove markdown headers anywhere in the text
+                    .replace(/\*\*([^*]+)\*\*/g, '$1')  // Remove bold formatting
+                    .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1') // Remove markdown links
+                    .replace(/\[[^\]]+\]/g, '')         // Remove remaining brackets
+                    .replace(/\\n/g, '\n')              // Fix newlines
+                    .replace(/\n{3,}/g, '\n\n')        // Normalize multiple newlines
+                    .replace(/^[\s\n]+|[\s\n]+$/g, '') // Trim whitespace and newlines
+                    .trim();
             };
 
-            // Clean the general message
-            messages.general = cleanMessage(messages.general);
+            const cleanedMessage = cleanMessage(content);
 
-            // Clean each platform-specific message
-            Object.keys(messages.platforms).forEach(platform => {
-                messages.platforms[platform] = cleanMessage(messages.platforms[platform]);
+            // Verify the quiz URL is included
+            if (!cleanedMessage.includes(quizUrl)) {
+                throw new Error('Generated message is missing the quiz URL');
+            }
+
+            return NextResponse.json({ 
+                message: cleanedMessage,
+                success: true
             });
 
-            return Response.json(messages);
         } catch (error) {
-            console.error("Error parsing content as JSON:", error, "\nContent:", content);
-            throw new Error("Failed to parse response as JSON");
+            console.error("Error processing message:", error);
+            return NextResponse.json(
+                { error: error instanceof Error ? error.message : 'Failed to process the generated message', success: false },
+                { status: 500 }
+            );
         }
     } catch (error) {
-        console.error("Error generating content:", error);
-        return Response.json({ error: error instanceof Error ? error.message : "Failed to generate content" }, { status: 500 });
+        console.error("Error generating multiplatform message:", error);
+        return NextResponse.json({
+            error: error instanceof Error ? error.message : "Failed to generate multiplatform message",
+            success: false
+        }, { status: 500 });
     }
 } 

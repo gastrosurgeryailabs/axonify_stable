@@ -47,34 +47,37 @@ const TwitterSection = ({ form }: TwitterSectionProps) => {
                                                 userInput: field.value || "",
                                                 apiKey: form.getValues("apiKey"),
                                                 model: form.getValues("model"),
+                                                serverUrl: form.getValues("serverUrl"),
                                                 quizUrl,
                                                 messageType: "direct_link"
                                             });
                                             
-                                            if (response.data.message) {
+                                            if (response.data.success && response.data.message) {
                                                 let message = response.data.message;
-                                                message = message.replace(/^\*\*Tweet:\*\*\s*/i, '');
                                                 
-                                                if (message.includes("link in bio")) {
-                                                    message = message.replace(
-                                                        /👇\s*\*\*Click the link in our bio[^!]*!\*\*\s*👇/,
-                                                        `🎯 Take the quiz now: ${quizUrl} 🎯`
-                                                    );
-                                                } else if (!message.includes(quizUrl)) {
-                                                    message += `\n\n🎯 Challenge yourself: ${quizUrl}`;
-                                                }
-                                                
-                                                // Ensure message is within Twitter's limit
-                                                if (message.length > 280) {
-                                                    message = message.substring(0, 277) + "...";
+                                                // Add quiz URL if not present
+                                                if (!message.includes(quizUrl)) {
+                                                    // Check remaining characters to ensure we don't exceed 280
+                                                    const remainingChars = 280 - message.length;
+                                                    const urlSuffix = `\n\n🎯 ${quizUrl}`;
+                                                    
+                                                    if (remainingChars >= urlSuffix.length) {
+                                                        message += urlSuffix;
+                                                    } else {
+                                                        // If not enough space, try to make room by trimming the message
+                                                        message = message.slice(0, 280 - urlSuffix.length) + urlSuffix;
+                                                    }
                                                 }
                                                 
                                                 form.setValue("socialMedia.twitter.message", message);
+                                            } else {
+                                                throw new Error(response.data.error || "Failed to generate tweet");
                                             }
                                         } catch (error) {
+                                            console.error("Tweet generation error:", error);
                                             toast({
                                                 title: "Generation Failed",
-                                                description: "Failed to generate tweet. Please try again.",
+                                                description: error instanceof Error ? error.message : "Failed to generate tweet. Please try again.",
                                                 variant: "destructive",
                                             });
                                         } finally {

@@ -47,11 +47,12 @@ const ThreadsSection = ({ form }: ThreadsSectionProps) => {
                                                 userInput: field.value || "",
                                                 apiKey: form.getValues("apiKey"),
                                                 model: form.getValues("model"),
+                                                serverUrl: form.getValues("serverUrl"),
                                                 quizUrl,
                                                 messageType: "direct_link"
                                             });
                                             
-                                            if (response.data.message) {
+                                            if (response.data.success && response.data.message) {
                                                 let message = response.data.message;
                                                 message = message.replace(/^\*\*Thread:\*\*\s*/i, '');
                                                 
@@ -75,11 +76,14 @@ const ThreadsSection = ({ form }: ThreadsSectionProps) => {
                                                 }
                                                 
                                                 form.setValue("socialMedia.threads.message", message);
+                                            } else {
+                                                throw new Error(response.data.error || "Failed to generate thread");
                                             }
                                         } catch (error) {
+                                            console.error("Threads post generation error:", error);
                                             toast({
                                                 title: "Generation Failed",
-                                                description: "Failed to generate thread. Please try again.",
+                                                description: error instanceof Error ? error.message : "Failed to generate thread. Please try again.",
                                                 variant: "destructive",
                                             });
                                         } finally {

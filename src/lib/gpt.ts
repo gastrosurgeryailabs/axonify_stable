@@ -1,5 +1,15 @@
 // AnythingLLM client configuration
-const ANYTHING_LLM_URL = process.env.NEXT_PUBLIC_ANYTHING_LLM_URL || 'http://localhost:3001';
+let ANYTHING_LLM_URL = process.env.NEXT_PUBLIC_ANYTHING_LLM_URL || 'http://localhost:3001';
+
+// Function to update the AnythingLLM URL
+export function setAnythingLLMUrl(url: string) {
+    ANYTHING_LLM_URL = url;
+}
+
+// Function to get the current AnythingLLM URL
+export function getAnythingLLMUrl() {
+    return ANYTHING_LLM_URL;
+}
 
 // Helper function to make requests to AnythingLLM
 async function makeAnythingLLMRequest(messages: any[], temperature: number = 1, model: string = 'demo', apiKey?: string) {
