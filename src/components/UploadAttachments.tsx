@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from './ui/button';
-import { Upload, X, Loader2 } from 'lucide-react';
+import { Upload, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface UploadedFileStatus {
@@ -13,8 +13,9 @@ interface Props {
     workspaceModel: string;
     apiKey: string;
     serverUrl: string;  // AnythingLLM Server URL
-    uploadServerUrl?: string;  // Use this only if you're using unhosted/local AnythingLLM server (e.g. http://localhost:3001)
-    isUploadServerConnected?: boolean; // Required when using unhosted/local AnythingLLM server
+    // Commented out local development props
+    // uploadServerUrl?: string;  // Use this only if you're using unhosted/local AnythingLLM server (e.g. http://localhost:3001)
+    // isUploadServerConnected?: boolean; // Required when using unhosted/local AnythingLLM server
     disabled?: boolean;
 }
 
@@ -22,8 +23,8 @@ const UploadAttachments = ({
     workspaceModel, 
     apiKey, 
     serverUrl,
-    uploadServerUrl,
-    isUploadServerConnected,
+    // uploadServerUrl,
+    // isUploadServerConnected,
     disabled = false 
 }: Props) => {
     const { toast } = useToast();
@@ -31,25 +32,16 @@ const UploadAttachments = ({
     const [uploadError, setUploadError] = React.useState<string | null>(null);
     const [isUploading, setIsUploading] = React.useState(false);
 
-    // Check if we're using a local AnythingLLM server
-    const isLocalServer = React.useMemo(() => {
-        return uploadServerUrl !== undefined;
-    }, [uploadServerUrl]);
+    // Commented out local server check
+    // const isLocalServer = React.useMemo(() => {
+    //     return uploadServerUrl !== undefined;
+    // }, [uploadServerUrl]);
 
     const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const files = event.target.files;
         if (!files || files.length === 0) return;
 
-        // Only check upload server connection for local server setup
-        if (isLocalServer && !isUploadServerConnected) {
-            toast({
-                title: "Error",
-                description: "Please ensure local upload server is online before uploading files",
-                variant: "destructive",
-            });
-            return;
-        }
-
+        // Removed local server connection check since we're using deployed version
         setIsUploading(true);
         setUploadError(null);
 
@@ -82,7 +74,6 @@ const UploadAttachments = ({
                 console.log('Uploading and embedding file:', file.name, 'to workspace:', workspaceModel);
 
                 try {
-                    // Use serverUrl (AnythingLLM Server URL) for the actual upload
                     const response = await fetch(`${serverUrl}/api/workspace/${workspaceModel}/upload-and-embed`, {
                         method: 'POST',
                         headers: {
@@ -100,7 +91,6 @@ const UploadAttachments = ({
                     const result = await response.json();
                     console.log('Upload and embed result:', result);
 
-                    // Update success status for this file
                     setUploadedFiles(prev => prev.map((f) => 
                         f.file === file ? { ...f, status: 'success' as const } : f
                     ));
@@ -111,7 +101,6 @@ const UploadAttachments = ({
                     });
                 } catch (error) {
                     console.error('File upload error:', error);
-                    // Update error status for this file
                     setUploadedFiles(prev => prev.map((f) => 
                         f.file === file ? { 
                             ...f, 
@@ -167,18 +156,11 @@ const UploadAttachments = ({
                                 variant="outline"
                                 onClick={() => document.getElementById('file-upload')?.click()}
                                 className="w-full"
-                                disabled={disabled || isUploading || (isLocalServer && !isUploadServerConnected)}
+                                disabled={disabled || isUploading}
                             >
                                 <Upload className="h-4 w-4 mr-2" />
-                                {isUploading ? "Processing..." : 
-                                 (isLocalServer && !isUploadServerConnected) ? "Unhosted Server Not Online" : 
-                                 "Select Files"}
+                                {isUploading ? "Processing..." : "Select Files"}
                             </Button>
-                            {isLocalServer && !isUploadServerConnected && (
-                                <p className="text-sm text-yellow-600">
-                                    Please ensure unhosted AnythingLLM server is online before uploading files
-                                </p>
-                            )}
                             {uploadedFiles.length > 0 && (
                                 <div className="space-y-1">
                                     {uploadedFiles.map((fileStatus, index) => (
