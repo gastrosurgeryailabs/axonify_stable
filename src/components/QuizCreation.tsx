@@ -1319,9 +1319,6 @@ const QuizCreation = ({topicParam}: Props) => {
                                                     Copy
                                                 </Button>
                                             </div>
-                                            <p className="text-sm text-muted-foreground mt-2">
-                                                This link will be automatically included in your social media posts below.
-                                            </p>
                                         </div>
                                     )}
                                 </div>
@@ -1374,16 +1371,6 @@ const QuizCreation = ({topicParam}: Props) => {
                                         )}
                                     </>
                                 )}
-                            </div>
-
-                            <div className="flex justify-between">
-                                <Button
-                                    type="submit"
-                                    className="w-full"
-                                    disabled={isPending || isCreatingWorkspace || !form.watch('initialized')}
-                                >
-                                    {isCreatingWorkspace ? "Creating Workspace..." : "Start Quiz"}
-                                </Button>
                             </div>
                         </form>
                     </Form>
