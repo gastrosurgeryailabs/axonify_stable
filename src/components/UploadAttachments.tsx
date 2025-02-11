@@ -13,15 +13,15 @@ interface Props {
     workspaceModel: string;
     apiKey: string;
     serverUrl: string;  // AnythingLLM Server URL
-    uploadServerUrl: string;  // Only used to check if upload server is online
-    isUploadServerConnected: boolean;
+    uploadServerUrl?: string;  // Use this only if you're using unhosted/local AnythingLLM server (e.g. http://localhost:3001)
+    isUploadServerConnected?: boolean; // Required when using unhosted/local AnythingLLM server
     disabled?: boolean;
 }
 
 const UploadAttachments = ({ 
     workspaceModel, 
     apiKey, 
-    serverUrl,  // Add serverUrl prop
+    serverUrl,
     uploadServerUrl,
     isUploadServerConnected,
     disabled = false 
@@ -31,14 +31,20 @@ const UploadAttachments = ({
     const [uploadError, setUploadError] = React.useState<string | null>(null);
     const [isUploading, setIsUploading] = React.useState(false);
 
+    // Check if we're using a local AnythingLLM server
+    const isLocalServer = React.useMemo(() => {
+        return uploadServerUrl !== undefined;
+    }, [uploadServerUrl]);
+
     const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const files = event.target.files;
         if (!files || files.length === 0) return;
 
-        if (!isUploadServerConnected) {
+        // Only check upload server connection for local server setup
+        if (isLocalServer && !isUploadServerConnected) {
             toast({
                 title: "Error",
-                description: "Please ensure upload server is online before uploading files",
+                description: "Please ensure local upload server is online before uploading files",
                 variant: "destructive",
             });
             return;
@@ -161,16 +167,16 @@ const UploadAttachments = ({
                                 variant="outline"
                                 onClick={() => document.getElementById('file-upload')?.click()}
                                 className="w-full"
-                                disabled={disabled || isUploading || !isUploadServerConnected}
+                                disabled={disabled || isUploading || (isLocalServer && !isUploadServerConnected)}
                             >
                                 <Upload className="h-4 w-4 mr-2" />
                                 {isUploading ? "Processing..." : 
-                                 !isUploadServerConnected ? "Upload Server Not Online" : 
+                                 (isLocalServer && !isUploadServerConnected) ? "Unhosted Server Not Online" : 
                                  "Select Files"}
                             </Button>
-                            {!isUploadServerConnected && (
+                            {isLocalServer && !isUploadServerConnected && (
                                 <p className="text-sm text-yellow-600">
-                                    Please ensure upload server is online before uploading files
+                                    Please ensure unhosted AnythingLLM server is online before uploading files
                                 </p>
                             )}
                             {uploadedFiles.length > 0 && (
