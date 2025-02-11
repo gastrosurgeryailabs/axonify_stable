@@ -6,6 +6,7 @@ import { Button } from "./ui/button";
 import { Loader2 } from "lucide-react";
 import axios from "axios";
 import { useToast } from "@/hooks/use-toast";
+import { getQuizUrl } from '@/lib/utils';
 
 interface InstagramSectionProps {
     form: UseFormReturn<any>;
@@ -14,9 +15,7 @@ interface InstagramSectionProps {
 const InstagramSection = ({ form }: InstagramSectionProps) => {
     const [isGenerating, setIsGenerating] = useState(false);
     const { toast } = useToast();
-    const quizUrl = form.watch('gameId') ? 
-        `https://axonify.vercel.app/play/${form.watch('type')}/${form.watch('gameId')}` 
-        : '';
+    const quizUrl = getQuizUrl(form.watch('type'), form.watch('gameId'));
 
     return (
         <div className="space-y-4">
@@ -30,6 +29,7 @@ const InstagramSection = ({ form }: InstagramSectionProps) => {
                             <div className="space-y-2">
                                 <Textarea
                                     placeholder={`Write your Instagram caption here. Quiz link: '${quizUrl}'`}
+                                    maxLength={2200}
                                     {...field}
                                 />
                                 <Button
@@ -51,8 +51,8 @@ const InstagramSection = ({ form }: InstagramSectionProps) => {
                                                 messageType: "direct_link"
                                             });
                                             
-                                            if (response.data.success && response.data.caption) {
-                                                let message = response.data.caption;
+                                            if (response.data.success && response.data.message) {
+                                                let message = response.data.message;
                                                 message = message.replace(/^\*\*Caption:\*\*\s*/i, '');
                                                 
                                                 if (message.includes("link in bio")) {
@@ -61,7 +61,17 @@ const InstagramSection = ({ form }: InstagramSectionProps) => {
                                                         `🎯 Take the quiz now: ${quizUrl} 🎯`
                                                     );
                                                 } else if (!message.includes(quizUrl)) {
-                                                    message += `\n\n🎯 Challenge yourself here: ${quizUrl}`;
+                                                    message += `\n\n✨ Test your knowledge: ${quizUrl}`;
+                                                }
+                                                
+                                                // Add Instagram-style hashtags if not present
+                                                if (!message.includes('#InstaLearn')) {
+                                                    message += `\n\n#InstaLearn #Education #QuizTime #Learning`;
+                                                }
+                                                
+                                                // Ensure message is within Instagram's limit
+                                                if (message.length > 2200) {
+                                                    message = message.substring(0, 2197) + "...";
                                                 }
                                                 
                                                 form.setValue("socialMedia.instagram.message", message);
@@ -69,10 +79,10 @@ const InstagramSection = ({ form }: InstagramSectionProps) => {
                                                 throw new Error(response.data.error || "Failed to generate caption");
                                             }
                                         } catch (error) {
-                                            console.error("Caption generation error:", error);
+                                            console.error("Instagram caption generation error:", error);
                                             toast({
                                                 title: "Generation Failed",
-                                                description: error instanceof Error ? error.message : "Failed to generate post caption. Please try again.",
+                                                description: error instanceof Error ? error.message : "Failed to generate caption. Please try again.",
                                                 variant: "destructive",
                                             });
                                         } finally {
@@ -80,7 +90,14 @@ const InstagramSection = ({ form }: InstagramSectionProps) => {
                                         }
                                     }}
                                 >
-                                    {isGenerating ? "Generating..." : "Generate Caption with AI"}
+                                    {isGenerating ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Generating...
+                                        </>
+                                    ) : (
+                                        "Generate Caption with AI"
+                                    )}
                                 </Button>
                             </div>
                         </FormControl>
@@ -93,6 +110,6 @@ const InstagramSection = ({ form }: InstagramSectionProps) => {
             />
         </div>
     );
-};
+}
 
 export default InstagramSection; 

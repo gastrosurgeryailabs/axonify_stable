@@ -10,14 +10,17 @@ type Props = {
 };
 
 const GameTimer = ({ gameStarted }: Props) => {
-    const [now, setNow] = React.useState<Date>(new Date());
+    const [now, setNow] = React.useState<Date | null>(null);
 
     React.useEffect(() => {
+        setNow(new Date());
         const interval = setInterval(() => {
             setNow(new Date());
         }, 1000);
         return () => clearInterval(interval);
     }, []);
+
+    if (!now) return null;
 
     return (
         <div className='flex self-start mt-3 text-slate-400'>

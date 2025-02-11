@@ -36,6 +36,8 @@ import MultiPlatformSection from './MultiPlatformSection';
 import { setAnythingLLMUrl } from '@/lib/gpt';
 import UploadAttachments from './UploadAttachments';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from './ui/hover-card';
+import Link from 'next/link';
+import { getBaseUrl } from "@/lib/utils";
 
 type Props = {
     topicParam: string;
@@ -280,8 +282,6 @@ const QuizCreation = ({topicParam}: Props) => {
     const [isInitializing, setIsInitializing] = React.useState(false);
     const [isCheckingConnection, setIsCheckingConnection] = React.useState(false);
     const [connectionStatus, setConnectionStatus] = React.useState<'connected' | 'disconnected' | null>(null);
-    const [isCheckingUploadConnection, setIsCheckingUploadConnection] = React.useState(false);
-    const [uploadConnectionStatus, setUploadConnectionStatus] = React.useState<'connected' | 'disconnected' | null>(null);
     
     const form = useForm<Input>({
         resolver: zodResolver(quizCreationSchema),
@@ -295,7 +295,6 @@ const QuizCreation = ({topicParam}: Props) => {
             prompt: "Generate questions that are clear and engaging. For technical topics, ensure explanations are beginner-friendly. Include real-world examples where applicable.",
             apiKey: "",
             serverUrl: "",
-            uploadServerUrl: "",
             completionMessage: "Great job on completing the quiz!",
             socialMedia: {
                 selectedPlatforms: [],
@@ -589,51 +588,6 @@ const QuizCreation = ({topicParam}: Props) => {
         });
     };
 
-    // Add new function to check upload server connection
-    const checkUploadServerConnection = async (uploadServerUrl: string) => {
-        try {
-            setIsCheckingUploadConnection(true);
-            const response = await fetch(`${uploadServerUrl}/api/ping`);
-            if (response.ok) {
-                setUploadConnectionStatus('connected');
-                toast({
-                    title: "Success",
-                    description: "Successfully connected to upload server",
-                });
-            } else {
-                setUploadConnectionStatus('disconnected');
-                toast({
-                    title: "Connection Failed",
-                    description: "Could not connect to upload server. Please check the URL.",
-                    variant: "destructive",
-                });
-            }
-        } catch (error) {
-            setUploadConnectionStatus('disconnected');
-            toast({
-                title: "Connection Failed",
-                description: "Could not connect to upload server. Please check the URL.",
-                variant: "destructive",
-            });
-        } finally {
-            setIsCheckingUploadConnection(false);
-        }
-    };
-
-    const disconnectUploadServer = () => {
-        setUploadConnectionStatus('disconnected');
-        form.setValue('uploadServerUrl', '');
-        toast({
-            title: "Disconnected",
-            description: "Disconnected from upload server",
-        });
-    };
-
-    // Update file upload validation
-    const isUploadServerConfigValid = () => {
-        return uploadConnectionStatus === 'connected' && form.getValues('uploadServerUrl')?.length > 0;
-    };
-
     async function onSubmit(input: Input) {
         if (!isAnythingLLMConfigValid()) {
             toast({
@@ -648,9 +602,7 @@ const QuizCreation = ({topicParam}: Props) => {
             // If creating a new workspace
             if (input.model === 'new' && input.newWorkspace) {
                 await createWorkspace(input.newWorkspace, input.apiKey);
-                // Wait for the workspace to be created and get its ID
                 await fetchWorkspaces(input.apiKey);
-                // Get the latest form values after workspace creation
                 input = form.getValues();
             }
 
@@ -678,7 +630,6 @@ const QuizCreation = ({topicParam}: Props) => {
                 prompt: input.prompt,
                 apiKey: input.apiKey,
                 serverUrl: input.serverUrl,
-                uploadServerUrl: input.uploadServerUrl || undefined,
                 completionMessage: input.completionMessage || "Great job on completing the quiz!"
             };
         
@@ -1046,81 +997,11 @@ const QuizCreation = ({topicParam}: Props) => {
                                 </div>
                             </div>
 
-                            <FormField
-                                control={form.control}
-                                name="uploadServerUrl"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <div className="flex items-center gap-2">
-                                            <FormLabel>Upload Server URL</FormLabel>
-                                            <HoverCard>
-                                                <HoverCardTrigger>
-                                                    <Info className="h-4 w-4 text-muted-foreground" />
-                                                </HoverCardTrigger>
-                                                <HoverCardContent className="w-80">
-                                                    <div className="space-y-2">
-                                                        <p className="text-sm">
-                                                            If you're testing through your local AnythingLLM server, to start the collector server, please run from the root dir:
-                                                        </p>
-                                                        <code className="text-sm bg-muted p-2 rounded-md block">
-                                                            cd collector && yarn dev
-                                                        </code>
-                                                    </div>
-                                                </HoverCardContent>
-                                            </HoverCard>
-                                        </div>
-                                        <FormControl>
-                                            <div className="flex gap-2">
-                                                <Input 
-                                                    placeholder="Enter URL to check if upload server is online..." 
-                                                    {...field} 
-                                                    disabled={uploadConnectionStatus === 'connected'}
-                                                />
-                                                {uploadConnectionStatus === 'connected' ? (
-                                                    <Button
-                                                        type="button"
-                                                        variant="destructive"
-                                                        onClick={disconnectUploadServer}
-                                                        className="min-w-[100px]"
-                                                    >
-                                                        Disconnect
-                                                    </Button>
-                                                ) : (
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        onClick={() => checkUploadServerConnection(field.value)}
-                                                        disabled={isCheckingUploadConnection || !field.value}
-                                                        className="min-w-[100px]"
-                                                    >
-                                                        {isCheckingUploadConnection ? (
-                                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                                        ) : 'Connect'}
-                                                    </Button>
-                                                )}
-                                            </div>
-                                        </FormControl>
-                                        <FormDescription>
-                                            Enter URL to verify if the upload server is online and available
-                                            {uploadConnectionStatus === 'connected' && (
-                                                <span className="text-green-500 ml-2">✓ Connected</span>
-                                            )}
-                                            {uploadConnectionStatus === 'disconnected' && (
-                                                <span className="text-red-500 ml-2">× Not connected</span>
-                                            )}
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-
                             {/* Replace Upload Attachments Section with new component */}
                             <UploadAttachments 
                                 workspaceModel={form.watch('model')}
                                 apiKey={form.watch('apiKey')}
                                 serverUrl={form.watch('serverUrl')}
-                                uploadServerUrl={form.watch('uploadServerUrl')}
-                                isUploadServerConnected={uploadConnectionStatus === 'connected'}
                                 disabled={form.watch('model') === 'new'}
                             />
 
@@ -1299,24 +1180,38 @@ const QuizCreation = ({topicParam}: Props) => {
                                             <div className="bg-muted rounded-md p-3 flex items-center gap-2">
                                                 <div className="flex-1 break-all text-sm">
                                                     <code>
-                                                        {`https://axonify.vercel.app/play/${form.watch('type')}/${form.watch('gameId')}`}
+                                                        {`${window.location.origin}/play/${form.watch('type')}/${form.watch('gameId')}`}
                                                     </code>
                                                 </div>
-                                                <Button 
-                                                    variant="secondary" 
-                                                    size="sm"
+                                                <div className="flex gap-2">
+                                                    <Button 
+                                                        variant="secondary" 
+                                                        size="sm"
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            const url = `${window.location.origin}/play/${form.watch('type')}/${form.watch('gameId')}`;
+                                                            navigator.clipboard.writeText(url);
+                                                            toast({
+                                                                title: "Copied!",
+                                                                description: "Quiz link copied to clipboard",
+                                                            });
+                                                        }}
+                                                    >
+                                                        Copy Link
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                            <div className="mt-4">
+                                                <Button
                                                     type="button"
-                                                    onClick={(e) => {
-                                                        e.preventDefault();
-                                                        const url = `https://axonify.vercel.app/play/${form.watch('type')}/${form.watch('gameId')}`;
-                                                        navigator.clipboard.writeText(url);
-                                                        toast({
-                                                            title: "Copied!",
-                                                            description: "Quiz link copied to clipboard",
-                                                        });
+                                                    className="w-full"
+                                                    onClick={() => {
+                                                        const url = `${window.location.origin}/play/${form.watch('type')}/${form.watch('gameId')}`;
+                                                        window.open(url, '_blank');
                                                     }}
                                                 >
-                                                    Copy
+                                                    Start Quiz
                                                 </Button>
                                             </div>
                                         </div>

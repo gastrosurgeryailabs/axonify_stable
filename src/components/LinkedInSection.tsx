@@ -14,9 +14,7 @@ interface LinkedInSectionProps {
 const LinkedInSection = ({ form }: LinkedInSectionProps) => {
     const [isGenerating, setIsGenerating] = useState(false);
     const { toast } = useToast();
-    const quizUrl = form.watch('gameId') ? 
-        `https://axonify.vercel.app/play/${form.watch('type')}/${form.watch('gameId')}` 
-        : '';
+    const quizUrl = `${window.location.origin}/play/${form.watch('type')}/${form.watch('gameId')}`;
 
     return (
         <div className="space-y-4">

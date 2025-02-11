@@ -6,6 +6,7 @@ import { Button } from "./ui/button";
 import { Loader2 } from "lucide-react";
 import axios from "axios";
 import { useToast } from "@/hooks/use-toast";
+import { getQuizUrl } from '@/lib/utils';
 
 interface PinterestSectionProps {
     form: UseFormReturn<any>;
@@ -14,9 +15,7 @@ interface PinterestSectionProps {
 const PinterestSection = ({ form }: PinterestSectionProps) => {
     const [isGenerating, setIsGenerating] = useState(false);
     const { toast } = useToast();
-    const quizUrl = form.watch('gameId') ? 
-        `https://axonify.vercel.app/play/${form.watch('type')}/${form.watch('gameId')}` 
-        : '';
+    const quizUrl = getQuizUrl(form.watch('type'), form.watch('gameId'));
 
     return (
         <div className="space-y-4">
