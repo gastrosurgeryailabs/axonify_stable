@@ -21,3 +21,30 @@ export function formatTimeDelta(seconds: number) {
   }
   return parts.join(" ");
 }
+
+export const getBaseUrl = () => {
+  if (typeof window !== 'undefined') {
+    // browser should use relative path
+    return '';
+  }
+
+  if (process.env.VERCEL_URL) {
+    // reference for vercel.com
+    return `https://${process.env.VERCEL_URL}`;
+  }
+
+  if (process.env.NEXT_PUBLIC_BASE_URL) {
+    // reference for custom domain
+    return process.env.NEXT_PUBLIC_BASE_URL;
+  }
+
+  // assume localhost
+  return `http://localhost:${process.env.PORT ?? 3000}`;
+};
+
+export const getQuizUrl = (type: string, gameId: string) => {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+  return `${window.location.origin}/play/${type}/${gameId}`;
+};

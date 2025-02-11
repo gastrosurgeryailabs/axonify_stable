@@ -7,6 +7,7 @@ import { Loader2, RefreshCcw } from "lucide-react";
 import axios from "axios";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { getQuizUrl } from '@/lib/utils';
 
 interface MultiPlatformSectionProps {
     form: UseFormReturn<any>;
@@ -17,9 +18,7 @@ type SocialPlatform = 'twitter' | 'facebook' | 'instagram' | 'linkedin' | 'tikto
 const MultiPlatformSection = ({ form }: MultiPlatformSectionProps) => {
     const [isGenerating, setIsGenerating] = useState(false);
     const { toast } = useToast();
-    const quizUrl = form.watch('gameId') ? 
-        `https://axonify.vercel.app/play/${form.watch('type')}/${form.watch('gameId')}` 
-        : '';
+    const quizUrl = getQuizUrl(form.watch('type'), form.watch('gameId'));
 
     // Reset all social media content
     const resetContent = useCallback(() => {

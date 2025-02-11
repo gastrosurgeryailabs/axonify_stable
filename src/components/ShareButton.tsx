@@ -12,33 +12,46 @@ import { Share } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 
-type ShareButtonProps = {
-  topic: string;
+interface ShareButtonProps {
   gameId: string;
-};
+  gameType: string;
+}
 
-export function ShareButton({ topic, gameId }: ShareButtonProps) {
-  const [copied, setCopied] = useState(false);
-  const [currentShareLink, setCurrentShareLink] = useState('');
+const ShareButton = ({ gameId, gameType }: ShareButtonProps) => {
+  const [shareUrl, setShareUrl] = useState('');
+  const [isMobile, setIsMobile] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://axonify.vercel.app';
-      setCurrentShareLink(`${baseUrl}/quiz?topic=${encodeURIComponent(topic)}`);
+      const gameUrl = `${window.location.origin}/play/${gameType}/${gameId}`;
+      setShareUrl(gameUrl);
+      setIsMobile(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
     }
-  }, [topic]);
+  }, [gameId, gameType]);
+
+  const message = `Hey! Check out this awesome quiz on Axonify!\n\nTry it out: ${shareUrl}`;
+  const encodedMessage = encodeURIComponent(message);
+
+  const whatsappUrl = isMobile ? 
+    `whatsapp://send?text=${encodedMessage}` : 
+    `https://web.whatsapp.com/send?text=${encodedMessage}`;
 
   const copyToClipboard = () => {
-    if (!currentShareLink) return;
-    navigator.clipboard.writeText(currentShareLink);
-    setCopied(true);
+    if (!shareUrl) return;
+    navigator.clipboard.writeText(shareUrl);
     toast({
       title: "Link Copied!",
       description: "Quiz link has been copied to your clipboard",
       variant: "default",
     });
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => {
+      toast({
+        title: "Link Copied!",
+        description: "Quiz link has been copied to your clipboard",
+        variant: "default",
+      });
+    }, 2000);
   };
 
   return (
@@ -59,14 +72,22 @@ export function ShareButton({ topic, gameId }: ShareButtonProps) {
         <div className="flex gap-2">
           <Input
             readOnly
-            value={currentShareLink}
+            value={shareUrl}
             className="flex-1"
           />
           <Button onClick={copyToClipboard}>
-            {copied ? "Copied!" : "Copy"}
+            Copy
           </Button>
         </div>
+        <Button
+          onClick={() => window.open(whatsappUrl, '_blank')}
+          className="w-full mt-2"
+        >
+          Share on WhatsApp
+        </Button>
       </DialogContent>
     </Dialog>
   );
-} 
+};
+
+export default ShareButton; 
