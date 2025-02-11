@@ -8,8 +8,16 @@ import { translateQuizContent } from "@/lib/translation";
 export const POST = async (req: Request, res: Response) => {
     try {
         const body = await req.json();
-        const {amount, topic, type, targetLanguage, prompt, model, apiKey} = quizCreationSchema.parse(body);
-        
+        const { topic, type, amount, prompt, model, temperature, apiKey, targetLanguage, serverUrl, uploadServerUrl } = body;
+
+        // Validate the request data
+        if (!topic || !type || !amount || !prompt || !model || !apiKey || !serverUrl) {
+            return NextResponse.json(
+                { error: "Missing required fields" },
+                { status: 400 }
+            );
+        }
+
         console.log("Questions API received request:", {
             topic,
             type,

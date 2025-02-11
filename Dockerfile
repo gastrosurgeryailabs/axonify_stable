@@ -33,15 +33,17 @@ RUN adduser --system --uid 1001 nextjs
 
 # Copy necessary files
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 COPY --from=deps /app/node_modules/.prisma ./node_modules/.prisma
 
-# Create startup script
+# Create cache directory with correct permissions
+RUN mkdir -p .next/cache && chown -R nextjs:nodejs .next
+
+# Create and set permissions for the start script
 RUN echo '#!/bin/sh' > /app/start.sh && \
-    echo 'npx prisma migrate deploy' >> /app/start.sh && \
-    echo 'node server.js' >> /app/start.sh && \
+    echo 'npx prisma migrate deploy && node server.js' >> /app/start.sh && \
     chmod +x /app/start.sh
 
 USER nextjs

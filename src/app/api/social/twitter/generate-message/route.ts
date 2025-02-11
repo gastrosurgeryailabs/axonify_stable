@@ -3,10 +3,20 @@ import { strict_output } from "@/lib/gpt";
 
 export async function POST(req: Request) {
     try {
-        const { topic, type, userInput, apiKey, model } = await req.json();
+        const { topic, type, userInput, apiKey, model, serverUrl } = await req.json();
 
         if (!apiKey) {
-            throw new Error("AnythingLLM API key is required");
+            return NextResponse.json(
+                { error: "AnythingLLM API key is required" },
+                { status: 401 }
+            );
+        }
+
+        if (!serverUrl) {
+            return NextResponse.json(
+                { error: "AnythingLLM server URL is required" },
+                { status: 401 }
+            );
         }
 
         const system_prompt = `You are a social media expert who creates engaging Twitter/X posts that drive engagement while being concise and impactful. 
@@ -44,7 +54,9 @@ IMPORTANT FOR LLAMA:
 
 Format the response in a way that's ready to be posted on Twitter/X, strictly adhering to the 280-character limit. The quiz link will be automatically added by the system.`;
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_ANYTHING_LLM_URL}/api/v1/openai/chat/completions`, {
+        // Clean up server URL
+        const apiUrl = serverUrl.endsWith('/') ? serverUrl.slice(0, -1) : serverUrl;
+        const response = await fetch(`${apiUrl}/api/v1/openai/chat/completions`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -68,21 +80,30 @@ Format the response in a way that's ready to be posted on Twitter/X, strictly ad
         });
 
         if (!response.ok) {
-            throw new Error(`AnythingLLM API error: ${response.statusText}`);
+            console.error(`AnythingLLM API error: ${response.status} - ${response.statusText}`);
+            return NextResponse.json(
+                { error: `AnythingLLM API returned ${response.status}: ${response.statusText}` },
+                { status: response.status }
+            );
         }
 
         const data = await response.json();
-        const content = data?.choices?.[0]?.message?.content;
-
-        if (!content) {
-            throw new Error("No content received from AnythingLLM");
+        if (!data?.choices?.[0]?.message?.content) {
+            return NextResponse.json(
+                { error: 'Invalid response format from AnythingLLM' },
+                { status: 500 }
+            );
         }
 
-        return NextResponse.json({ message: content });
+        return NextResponse.json({ 
+            message: data.choices[0].message.content,
+            success: true
+        });
+
     } catch (error) {
-        console.error("Error generating tweet:", error);
+        console.error("Error generating Twitter message:", error);
         return NextResponse.json(
-            { error: error instanceof Error ? error.message : "Failed to generate tweet" },
+            { error: error instanceof Error ? error.message : "Failed to generate Twitter message" },
             { status: 500 }
         );
     }

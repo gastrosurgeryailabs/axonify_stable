@@ -47,11 +47,12 @@ const MastodonSection = ({ form }: MastodonSectionProps) => {
                                                 userInput: field.value || "",
                                                 apiKey: form.getValues("apiKey"),
                                                 model: form.getValues("model"),
+                                                serverUrl: form.getValues("serverUrl"),
                                                 quizUrl,
                                                 messageType: "direct_link"
                                             });
                                             
-                                            if (response.data.message) {
+                                            if (response.data.success && response.data.message) {
                                                 let message = response.data.message;
                                                 message = message.replace(/^\*\*Toot:\*\*\s*/i, '');
                                                 
@@ -75,11 +76,14 @@ const MastodonSection = ({ form }: MastodonSectionProps) => {
                                                 }
                                                 
                                                 form.setValue("socialMedia.mastodon.message", message);
+                                            } else {
+                                                throw new Error(response.data.error || "Failed to generate toot");
                                             }
                                         } catch (error) {
+                                            console.error("Mastodon toot generation error:", error);
                                             toast({
                                                 title: "Generation Failed",
-                                                description: "Failed to generate toot. Please try again.",
+                                                description: error instanceof Error ? error.message : "Failed to generate toot. Please try again.",
                                                 variant: "destructive",
                                             });
                                         } finally {

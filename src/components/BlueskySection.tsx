@@ -47,11 +47,12 @@ const BlueskySection = ({ form }: BlueskySectionProps) => {
                                                 userInput: field.value || "",
                                                 apiKey: form.getValues("apiKey"),
                                                 model: form.getValues("model"),
+                                                serverUrl: form.getValues("serverUrl"),
                                                 quizUrl,
                                                 messageType: "direct_link"
                                             });
                                             
-                                            if (response.data.message) {
+                                            if (response.data.success && response.data.message) {
                                                 let message = response.data.message;
                                                 message = message.replace(/^\*\*Post:\*\*\s*/i, '');
                                                 
@@ -75,11 +76,14 @@ const BlueskySection = ({ form }: BlueskySectionProps) => {
                                                 }
                                                 
                                                 form.setValue("socialMedia.bluesky.message", message);
+                                            } else {
+                                                throw new Error(response.data.error || "Failed to generate post");
                                             }
                                         } catch (error) {
+                                            console.error("Bluesky post generation error:", error);
                                             toast({
                                                 title: "Generation Failed",
-                                                description: "Failed to generate post. Please try again.",
+                                                description: error instanceof Error ? error.message : "Failed to generate post. Please try again.",
                                                 variant: "destructive",
                                             });
                                         } finally {

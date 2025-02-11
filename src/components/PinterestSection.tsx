@@ -47,11 +47,12 @@ const PinterestSection = ({ form }: PinterestSectionProps) => {
                                                 userInput: field.value || "",
                                                 apiKey: form.getValues("apiKey"),
                                                 model: form.getValues("model"),
+                                                serverUrl: form.getValues("serverUrl"),
                                                 quizUrl,
                                                 messageType: "direct_link"
                                             });
                                             
-                                            if (response.data.message) {
+                                            if (response.data.success && response.data.message) {
                                                 let message = response.data.message;
                                                 message = message.replace(/^\*\*Description:\*\*\s*/i, '');
                                                 
@@ -70,11 +71,14 @@ const PinterestSection = ({ form }: PinterestSectionProps) => {
                                                 }
                                                 
                                                 form.setValue("socialMedia.pinterest.message", message);
+                                            } else {
+                                                throw new Error(response.data.error || "Failed to generate pin description");
                                             }
                                         } catch (error) {
+                                            console.error("Pinterest description generation error:", error);
                                             toast({
                                                 title: "Generation Failed",
-                                                description: "Failed to generate pin description. Please try again.",
+                                                description: error instanceof Error ? error.message : "Failed to generate pin description. Please try again.",
                                                 variant: "destructive",
                                             });
                                         } finally {

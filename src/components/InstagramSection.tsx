@@ -46,12 +46,13 @@ const InstagramSection = ({ form }: InstagramSectionProps) => {
                                                 userInput: field.value || "",
                                                 apiKey: form.getValues("apiKey"),
                                                 model: form.getValues("model"),
+                                                serverUrl: form.getValues("serverUrl"),
                                                 quizUrl,
                                                 messageType: "direct_link"
                                             });
                                             
-                                            if (response.data.message) {
-                                                let message = response.data.message;
+                                            if (response.data.success && response.data.caption) {
+                                                let message = response.data.caption;
                                                 message = message.replace(/^\*\*Caption:\*\*\s*/i, '');
                                                 
                                                 if (message.includes("link in bio")) {
@@ -64,11 +65,14 @@ const InstagramSection = ({ form }: InstagramSectionProps) => {
                                                 }
                                                 
                                                 form.setValue("socialMedia.instagram.message", message);
+                                            } else {
+                                                throw new Error(response.data.error || "Failed to generate caption");
                                             }
                                         } catch (error) {
+                                            console.error("Caption generation error:", error);
                                             toast({
                                                 title: "Generation Failed",
-                                                description: "Failed to generate post caption. Please try again.",
+                                                description: error instanceof Error ? error.message : "Failed to generate post caption. Please try again.",
                                                 variant: "destructive",
                                             });
                                         } finally {

@@ -46,11 +46,12 @@ const LinkedInSection = ({ form }: LinkedInSectionProps) => {
                                                 userInput: field.value || "",
                                                 apiKey: form.getValues("apiKey"),
                                                 model: form.getValues("model"),
+                                                serverUrl: form.getValues("serverUrl"),
                                                 quizUrl,
                                                 messageType: "direct_link"
                                             });
                                             
-                                            if (response.data.message) {
+                                            if (response.data.success && response.data.message) {
                                                 let message = response.data.message;
                                                 // Remove any prefix like "Post:" if present
                                                 message = message.replace(/^\*\*Post:\*\*\s*/i, '');
@@ -61,11 +62,14 @@ const LinkedInSection = ({ form }: LinkedInSectionProps) => {
                                                 }
                                                 
                                                 form.setValue("socialMedia.linkedin.message", message);
+                                            } else {
+                                                throw new Error(response.data.error || "Failed to generate post content");
                                             }
                                         } catch (error) {
+                                            console.error("LinkedIn post generation error:", error);
                                             toast({
                                                 title: "Generation Failed",
-                                                description: "Failed to generate post content. Please try again.",
+                                                description: error instanceof Error ? error.message : "Failed to generate post content. Please try again.",
                                                 variant: "destructive",
                                             });
                                         } finally {
@@ -73,7 +77,14 @@ const LinkedInSection = ({ form }: LinkedInSectionProps) => {
                                         }
                                     }}
                                 >
-                                    {isGenerating ? "Generating..." : "Generate Post with AI"}
+                                    {isGenerating ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Generating...
+                                        </>
+                                    ) : (
+                                        "Generate Post with AI"
+                                    )}
                                 </Button>
                             </div>
                         </FormControl>

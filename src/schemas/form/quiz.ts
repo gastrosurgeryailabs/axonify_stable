@@ -75,10 +75,12 @@ export const quizCreationSchema = z.object({
     amount: z.number().min(1).max(10),
     targetLanguage: z.string().default('en'),
     prompt: z.string().min(10, {message: "Prompt must be at least 10 characters long"}).max(2000),
-    model: z.string().min(1, {message: "Model selection is required"}), // Changed from workspaceId to model
-    newWorkspace: workspaceCreationSchema.optional(), // For creating new workspace
+    model: z.string().min(1, {message: "Model selection is required"}),
+    newWorkspace: workspaceCreationSchema.optional(),
     temperature: z.number().min(0).max(1).default(0.7),
     apiKey: z.string().min(1, {message: "API key is required"}),
+    serverUrl: z.string().min(1, {message: "Server URL is required"}),
+    uploadServerUrl: z.string().optional(),
     completionMessage: z.string().optional().default("Great job on completing the quiz!"),
     socialMedia: socialMediaSchema.optional(),
     gameId: z.string().optional(),

@@ -46,11 +46,12 @@ const FacebookSection = ({ form }: FacebookSectionProps) => {
                                                 userInput: field.value || "",
                                                 apiKey: form.getValues("apiKey"),
                                                 model: form.getValues("model"),
+                                                serverUrl: form.getValues("serverUrl"),
                                                 quizUrl,
                                                 messageType: "direct_link"
                                             });
                                             
-                                            if (response.data.message) {
+                                            if (response.data.success && response.data.message) {
                                                 let message = response.data.message;
                                                 // Remove any prefix like "Message:" if present
                                                 message = message.replace(/^\*\*Message:\*\*\s*/i, '');
@@ -61,11 +62,14 @@ const FacebookSection = ({ form }: FacebookSectionProps) => {
                                                 }
                                                 
                                                 form.setValue("socialMedia.facebook.message", message);
+                                            } else {
+                                                throw new Error(response.data.error || "Failed to generate post message");
                                             }
                                         } catch (error) {
+                                            console.error("Facebook post generation error:", error);
                                             toast({
                                                 title: "Generation Failed",
-                                                description: "Failed to generate post message. Please try again.",
+                                                description: error instanceof Error ? error.message : "Failed to generate post message. Please try again.",
                                                 variant: "destructive",
                                             });
                                         } finally {
@@ -73,7 +77,14 @@ const FacebookSection = ({ form }: FacebookSectionProps) => {
                                         }
                                     }}
                                 >
-                                    {isGenerating ? "Generating..." : "Generate Post with AI"}
+                                    {isGenerating ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Generating...
+                                        </>
+                                    ) : (
+                                        "Generate Post with AI"
+                                    )}
                                 </Button>
                             </div>
                         </FormControl>

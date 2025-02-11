@@ -15,200 +15,222 @@ export async function POST(req: Request, res: Response) {
             );
         }
 
-        const body = await req.json();
-        const { amount, topic, type, targetLanguage, prompt, model, apiKey, completionMessage } = quizCreationSchema.parse(body);
+        console.log("Session validated successfully");
 
+        const body = await req.json();
+        console.log("Received request body:", body);
+
+        const { amount, topic, type, targetLanguage, prompt, model, apiKey, completionMessage, serverUrl, uploadServerUrl } = quizCreationSchema.parse(body);
+        console.log("Request body validated successfully");
         console.log("Game API received model:", model);
         console.log("Creating game with:", { amount, topic, type, targetLanguage, prompt, model });
 
-        // First, generate questions outside the transaction
-        const questionsUrl = process.env.API_URL ? `${process.env.API_URL}/api/questions` : '/api/questions';
-        console.log("Fetching questions from:", questionsUrl);
-
-        try {
-            const { data } = await axios.post(questionsUrl, {
-                amount,
-                topic,
-                type,
-                targetLanguage,
-                prompt,
-                model,
-                apiKey,
-            });
-
-            console.log("Questions API response:", data);
-
-            if (!data?.questions || !Array.isArray(data.questions)) {
-                throw new Error('Invalid question format received');
-            }
-
-            // Then use transaction only for database operations with increased timeout
-            const game = await prisma.$transaction(async (tx) => {
-                // Create the game
-                const newGame = await tx.game.create({
-                    data: {
-                        topic,
-                        gameType: type,
-                        timeStarted: new Date(),
-                        userId: session.user.id,
-                        completionMessage,
+        // Make request to AnythingLLM API for questions
+        const apiUrl = serverUrl.endsWith('/') ? serverUrl.slice(0, -1) : serverUrl;
+        console.log("Making request to AnythingLLM API at:", apiUrl);
+        const response = await fetch(`${apiUrl}/api/v1/openai/chat/completions`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                messages: [
+                    {
+                        role: "system",
+                        content: `You are a quiz generator. Return only a single JSON array without any additional text, markdown, or explanation. The response must be a single array containing all questions, like this exact format: [{"question": "First question", "options": ["A", "B", "C", "D"], "answer": "A"}, {"question": "Second question", "options": ["W", "X", "Y", "Z"], "answer": "Z"}]. For MCQ questions: each question needs "question" (string), "options" (array of exactly 4 strings), and "answer" (string matching one option). For open-ended: each needs "question" and "answer" (both strings).`
                     },
-                });
-
-                console.log("Game created:", newGame.id);
-
-                // Update topic count
-                await tx.topic_count.upsert({
-                    where: { topic },
-                    create: {
-                        topic,
-                        count: 1
-                    },
-                    update: {
-                        count: {
-                            increment: 1
-                        }
+                    {
+                        role: "user",
+                        content: `Generate ${amount} ${type === 'mcq' ? 'multiple choice' : 'open ended'} questions about ${topic}.\n\nRequirements: ${prompt}`
                     }
-                });
+                ],
+                model,
+                temperature: 0.7,
+                stream: false
+            })
+        });
 
-                console.log("Topic count updated");
-
-                if (type === "mcq") {
-                    const manyData = data.questions.map((question: any) => {
-                        // Create array of all options including the answer
-                        const allOptions = [
-                            question.answer,
-                            question.option1,
-                            question.option2,
-                            question.option3
-                        ];
-
-                        // Check for duplicates
-                        const uniqueOptions = new Set(allOptions);
-                        if (uniqueOptions.size !== allOptions.length) {
-                            console.error("Duplicate options found");
-                            throw new Error("Duplicate options detected in question");
-                        }
-
-                        // Shuffle the options
-                        const shuffledOptions = allOptions.sort(() => Math.random() - 0.5);
-
-                        return {
-                            question: question.question,
-                            answer: question.answer,
-                            options: JSON.stringify(shuffledOptions),
-                            gameId: newGame.id,
-                            questionType: type,
-                        };
-                    });
-
-                    await tx.question.createMany({
-                        data: manyData
-                    });
-                    console.log("MCQ questions created");
-                } else if (type === 'open_ended') {
-                    const manyData = data.questions.map((question: any) => ({
-                        question: question.question,
-                        answer: question.answer,
-                        gameId: newGame.id,
-                        questionType: type,
-                    }));
-
-                    await tx.question.createMany({
-                        data: manyData
-                    });
-                    console.log("Open-ended questions created");
-                }
-
-                return newGame;
-            }, {
-                timeout: 10000 // Set timeout to 10 seconds
-            });
-
-            if (!game?.id) {
-                throw new Error("Failed to create game - no game ID returned");
-            }
-
-            return NextResponse.json({
-                gameId: game.id
-            });
-
-        } catch (error: any) {
-            console.error("Questions API error:", error.response?.data || error);
-            
-            // Check if the error is from the questions API
-            if (error.response?.data) {
-                const status = error.response.status;
-                const apiError = error.response.data.error;
-                
-                // If it's an API key error, return 401
-                if (
-                    status === 401 || 
-                    status === 403 ||
-                    (apiError && (
-                        apiError.toLowerCase().includes('api key') ||
-                        apiError.toLowerCase().includes('authentication')
-                    ))
-                ) {
-                    return NextResponse.json(
-                        { error: apiError || "Invalid API key. Please check your API key and try again." },
-                        { status: 401 }
-                    );
-                }
-
-                // If it's a rate limit error, return 429
-                if (status === 429) {
-                    return NextResponse.json(
-                        { error: apiError || "We're experiencing high traffic. Please try again in a few seconds." },
-                        { status: 429 }
-                    );
-                }
-
-                // If it's a server overload error, return 503
-                if (status === 503 || status === 502) {
-                    return NextResponse.json(
-                        { error: apiError || "Our servers are currently busy. Please try again in a moment." },
-                        { status: 503 }
-                    );
-                }
-                
-                // For other API errors, return with the original status and a user-friendly message
-                return NextResponse.json(
-                    { error: apiError || "Unable to generate quiz right now. Please try again in a few moments." },
-                    { status }
-                );
-            }
-            
-            // For non-response errors, throw to be caught by outer catch
-            throw error;
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error("AnythingLLM API error response:", errorText);
+            throw new Error(`AnythingLLM API returned ${response.status}: ${response.statusText}. Details: ${errorText}`);
         }
 
-    } catch (error) {
-        console.log("Game creation failed:", error instanceof Error ? error.message : 'Something went wrong');
+        const data = await response.json();
+        if (!data?.choices?.[0]?.message?.content) {
+            throw new Error('Invalid response format from AnythingLLM');
+        }
 
+        const content = data.choices[0].message.content;
+        console.log('Raw AI response:', content);
+
+        // Parse and validate questions
+        let parsedQuestions;
+        try {
+            // Find the JSON array in the response
+            const jsonMatch = content.match(/\[\s*{[\s\S]*}\s*\]/);
+            if (!jsonMatch) {
+                throw new Error('No JSON array found in response');
+            }
+
+            // Clean up the JSON string
+            const jsonStr = jsonMatch[0]
+                .replace(/\n/g, '')  // Remove newlines
+                .replace(/\s+/g, ' ') // Normalize spaces
+                .replace(/,\s*]/g, ']'); // Remove trailing commas
+
+            parsedQuestions = JSON.parse(jsonStr);
+
+            // Ensure we have an array
+            if (!Array.isArray(parsedQuestions)) {
+                parsedQuestions = [parsedQuestions];
+            }
+
+            // Validate each question
+            parsedQuestions = parsedQuestions.map((q: any, index: number) => {
+                const questionNum = index + 1;
+                
+                // Basic structure validation
+                if (!q.question || typeof q.question !== 'string') {
+                    throw new Error(`Question ${questionNum} must have a valid question text`);
+                }
+                if (!q.answer || typeof q.answer !== 'string') {
+                    throw new Error(`Question ${questionNum} must have a valid answer`);
+                }
+
+                // Trim the question
+                q.question = q.question.trim();
+                q.answer = q.answer.trim();
+
+                if (type === 'mcq') {
+                    if (!Array.isArray(q.options) || q.options.length !== 4) {
+                        throw new Error(`Question ${questionNum} must have exactly 4 options`);
+                    }
+
+                    // Normalize options and answer
+                    const normalizedOptions = q.options.map((opt: string) => {
+                        opt = opt.trim();
+                        // Remove letter prefix if present (e.g., "A. ", "B. ")
+                        return opt.replace(/^[A-D]\.\s*/, '');
+                    });
+
+                    let normalizedAnswer = q.answer.trim();
+                    // If answer is just a letter (A, B, C, D), convert to full option text
+                    if (/^[A-D]$/.test(normalizedAnswer)) {
+                        const index = normalizedAnswer.charCodeAt(0) - 'A'.charCodeAt(0);
+                        if (index >= 0 && index < q.options.length) {
+                            normalizedAnswer = normalizedOptions[index];
+                        }
+                    } else {
+                        // Remove letter prefix if present
+                        normalizedAnswer = normalizedAnswer.replace(/^[A-D]\.\s*/, '');
+                    }
+
+                    // Check if normalized answer matches any normalized option
+                    if (!normalizedOptions.includes(normalizedAnswer)) {
+                        throw new Error(`Question ${questionNum}'s answer must match one of its options`);
+                    }
+
+                    return {
+                        question: q.question,
+                        options: normalizedOptions,
+                        answer: normalizedAnswer
+                    };
+                }
+
+                // For open-ended questions
+                return {
+                    question: q.question,
+                    answer: q.answer
+                };
+            });
+
+            if (parsedQuestions.length !== amount) {
+                throw new Error(`Expected ${amount} questions but got ${parsedQuestions.length}`);
+            }
+
+        } catch (error) {
+            console.error('Error parsing questions:', error);
+            console.error('Raw content:', content);
+            throw new Error(error instanceof Error ? error.message : 'Failed to parse questions from response');
+        }
+
+        // Create game and questions in database
+        const game = await prisma.$transaction(async (tx) => {
+            const newGame = await tx.game.create({
+                data: {
+                    topic,
+                    gameType: type,
+                    timeStarted: new Date(),
+                    userId: session.user.id,
+                    completionMessage,
+                },
+            });
+
+            console.log("Game created:", newGame.id);
+
+            // Update topic count
+            await tx.topic_count.upsert({
+                where: { topic },
+                create: {
+                    topic,
+                    count: 1
+                },
+                update: {
+                    count: {
+                        increment: 1
+                    }
+                }
+            });
+
+            console.log("Topic count updated");
+
+            if (type === "mcq") {
+                const manyData = parsedQuestions.map((question: any) => ({
+                    question: question.question,
+                    answer: question.answer,
+                    options: JSON.stringify(question.options),
+                    gameId: newGame.id,
+                    questionType: type,
+                }));
+
+                await tx.question.createMany({
+                    data: manyData
+                });
+                console.log("MCQ questions created");
+            } else if (type === 'open_ended') {
+                const manyData = parsedQuestions.map((question: any) => ({
+                    question: question.question,
+                    answer: question.answer,
+                    gameId: newGame.id,
+                    questionType: type,
+                }));
+
+                await tx.question.createMany({
+                    data: manyData
+                });
+                console.log("Open-ended questions created");
+            }
+
+            return newGame;
+        });
+
+        return NextResponse.json({
+            gameId: game.id
+        });
+
+    } catch (error) {
+        console.error("Game creation failed. Full error:", error);
         if (error instanceof ZodError) {
+            console.error("Validation error:", error.errors);
             return NextResponse.json(
-                { error: "Invalid request data" },
+                { error: "Invalid request data", details: error.errors },
                 { status: 400 }
             );
         }
-
-        // Check for API key related errors in the error message
-        const errorMessage = error instanceof Error ? error.message : 'Something went wrong';
-        if (
-            errorMessage.toLowerCase().includes('api key') ||
-            errorMessage.toLowerCase().includes('authentication') ||
-            (error as any)?.response?.status === 401 ||
-            (error as any)?.response?.status === 403
-        ) {
-            return NextResponse.json(
-                { error: "Invalid API key. Please check your API key and try again." },
-                { status: 401 }
-            );
-        }
-
         return NextResponse.json(
-            { error: errorMessage },
+            { error: error instanceof Error ? error.message : "An unexpected error occurred", details: error },
             { status: 500 }
         );
     }
