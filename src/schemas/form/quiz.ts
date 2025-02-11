@@ -80,7 +80,7 @@ export const quizCreationSchema = z.object({
     temperature: z.number().min(0).max(1).default(0.7),
     apiKey: z.string().min(1, {message: "API key is required"}),
     serverUrl: z.string().min(1, {message: "Server URL is required"}),
-    uploadServerUrl: z.string().min(1, {message: "Upload Server URL is required"}),
+    uploadServerUrl: z.string().optional(),
     completionMessage: z.string().optional().default("Great job on completing the quiz!"),
     socialMedia: socialMediaSchema.optional(),
     gameId: z.string().optional(),

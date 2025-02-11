@@ -20,7 +20,7 @@ export async function POST(req: Request, res: Response) {
         const body = await req.json();
         console.log("Received request body:", body);
 
-        const { amount, topic, type, targetLanguage, prompt, model, apiKey, completionMessage, serverUrl } = quizCreationSchema.parse(body);
+        const { amount, topic, type, targetLanguage, prompt, model, apiKey, completionMessage, serverUrl, uploadServerUrl } = quizCreationSchema.parse(body);
         console.log("Request body validated successfully");
         console.log("Game API received model:", model);
         console.log("Creating game with:", { amount, topic, type, targetLanguage, prompt, model });

@@ -644,12 +644,10 @@ const QuizCreation = ({topicParam}: Props) => {
             return;
         }
 
-        console.log("Form submitted with raw input:", input);
-        
         try {
             // If creating a new workspace
             if (input.model === 'new' && input.newWorkspace) {
-                const result = await createWorkspace(input.newWorkspace, input.apiKey);
+                await createWorkspace(input.newWorkspace, input.apiKey);
                 // Wait for the workspace to be created and get its ID
                 await fetchWorkspaces(input.apiKey);
                 // Get the latest form values after workspace creation
@@ -679,12 +677,14 @@ const QuizCreation = ({topicParam}: Props) => {
                 targetLanguage: input.targetLanguage,
                 prompt: input.prompt,
                 apiKey: input.apiKey,
+                serverUrl: input.serverUrl,
+                uploadServerUrl: input.uploadServerUrl || undefined,
                 completionMessage: input.completionMessage || "Great job on completing the quiz!"
             };
         
-        console.log("Final submission data:", submissionData);
-        setShowLoader(true);
-        getQuestions(submissionData);
+            console.log("Final submission data:", submissionData);
+            setShowLoader(true);
+            getQuestions(submissionData);
         } catch (error) {
             console.error("Form submission error:", error);
             toast({

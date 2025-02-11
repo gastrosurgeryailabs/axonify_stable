@@ -8,7 +8,7 @@ import { translateQuizContent } from "@/lib/translation";
 export const POST = async (req: Request, res: Response) => {
     try {
         const body = await req.json();
-        const { topic, type, amount, prompt, model, temperature, apiKey, targetLanguage, serverUrl } = body;
+        const { topic, type, amount, prompt, model, temperature, apiKey, targetLanguage, serverUrl, uploadServerUrl } = body;
 
         // Validate the request data
         if (!topic || !type || !amount || !prompt || !model || !apiKey || !serverUrl) {
