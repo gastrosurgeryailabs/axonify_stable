@@ -282,6 +282,7 @@ const QuizCreation = ({topicParam}: Props) => {
     const [isInitializing, setIsInitializing] = React.useState(false);
     const [isCheckingConnection, setIsCheckingConnection] = React.useState(false);
     const [connectionStatus, setConnectionStatus] = React.useState<'connected' | 'disconnected' | null>(null);
+    const [isLoadingCredentials, setIsLoadingCredentials] = React.useState(true);
     
     const form = useForm<Input>({
         resolver: zodResolver(quizCreationSchema),
@@ -303,6 +304,64 @@ const QuizCreation = ({topicParam}: Props) => {
             gameId: undefined
         }
     });
+
+    // Load saved credentials on component mount
+    React.useEffect(() => {
+        const loadCredentials = async () => {
+            try {
+                const response = await fetch('/api/user/credentials');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data) {
+                        form.setValue('serverUrl', data.anythingLLMUrl || '');
+                        form.setValue('apiKey', data.anythingLLMKey || '');
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading credentials:', error);
+            } finally {
+                setIsLoadingCredentials(false);
+            }
+        };
+        loadCredentials();
+    }, [form]);
+
+    // Save credentials when they change
+    const saveCredentials = async (serverUrl: string, apiKey: string) => {
+        try {
+            const response = await fetch('/api/user/credentials', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    anythingLLMUrl: serverUrl,
+                    anythingLLMKey: apiKey,
+                }),
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to save credentials');
+            }
+        } catch (error) {
+            console.error('Error saving credentials:', error);
+            toast({
+                title: "Error",
+                description: "Failed to save credentials",
+                variant: "destructive",
+            });
+        }
+    };
+
+    // Watch for credential changes
+    const serverUrl = form.watch('serverUrl');
+    const apiKey = form.watch('apiKey');
+    
+    React.useEffect(() => {
+        if (serverUrl && apiKey && !isLoadingCredentials) {
+            saveCredentials(serverUrl, apiKey);
+        }
+    }, [serverUrl, apiKey, isLoadingCredentials]);
 
     // Watch for server URL changes
     const serverUrl = form.watch('serverUrl');
