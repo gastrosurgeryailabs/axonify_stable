@@ -6,6 +6,7 @@ import { Button } from "./ui/button";
 import { Loader2 } from "lucide-react";
 import axios from "axios";
 import { useToast } from "@/hooks/use-toast";
+import { getQuizUrl } from '@/utils/quizUrl';
 
 interface LinkedInSectionProps {
     form: UseFormReturn<any>;
@@ -14,7 +15,7 @@ interface LinkedInSectionProps {
 const LinkedInSection = ({ form }: LinkedInSectionProps) => {
     const [isGenerating, setIsGenerating] = useState(false);
     const { toast } = useToast();
-    const quizUrl = `${window.location.origin}/play/${form.watch('type')}/${form.watch('gameId')}`;
+    const quizUrl = getQuizUrl(form.watch('type'), form.watch('gameId'));
 
     return (
         <div className="space-y-4">

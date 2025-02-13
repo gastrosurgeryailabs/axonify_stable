@@ -7,7 +7,7 @@ import { Loader2, RefreshCcw } from "lucide-react";
 import axios from "axios";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { getQuizUrl } from '@/lib/utils';
+import { getQuizUrl } from '@/utils/quizUrl';
 
 interface MultiPlatformSectionProps {
     form: UseFormReturn<any>;
@@ -18,7 +18,16 @@ type SocialPlatform = 'twitter' | 'facebook' | 'instagram' | 'linkedin' | 'tikto
 const MultiPlatformSection = ({ form }: MultiPlatformSectionProps) => {
     const [isGenerating, setIsGenerating] = useState(false);
     const { toast } = useToast();
-    const quizUrl = getQuizUrl(form.watch('type'), form.watch('gameId'));
+
+    // Add safe URL getter
+    const getQuizUrlSafe = () => {
+        const type = form.watch('type') as string;
+        const gameId = form.watch('gameId') as string;
+        if (!type || !gameId || typeof type !== 'string' || typeof gameId !== 'string') return '';
+        return getQuizUrl(type, gameId);
+    };
+
+    const quizUrl = getQuizUrlSafe();
 
     // Reset all social media content
     const resetContent = useCallback(() => {
@@ -53,6 +62,16 @@ const MultiPlatformSection = ({ form }: MultiPlatformSectionProps) => {
         const platforms = form.getValues("socialMedia.selectedPlatforms") as SocialPlatform[];
         const errors: string[] = [];
         const successes: string[] = [];
+        const currentQuizUrl = getQuizUrlSafe();
+
+        if (!currentQuizUrl) {
+            toast({
+                title: "Error",
+                description: "Quiz must be initialized before generating content.",
+                variant: "destructive",
+            });
+            return { errors: ["Quiz not initialized"], successes: [] };
+        }
 
         // Generate content for each platform
         for (const platform of platforms) {
@@ -64,7 +83,7 @@ const MultiPlatformSection = ({ form }: MultiPlatformSectionProps) => {
                     apiKey: form.getValues("apiKey"),
                     model: form.getValues("model"),
                     serverUrl: form.getValues("serverUrl"),
-                    quizUrl
+                    quizUrl: currentQuizUrl
                 });
 
                 if (response.data.success) {
@@ -81,8 +100,8 @@ const MultiPlatformSection = ({ form }: MultiPlatformSectionProps) => {
                             .trim();
 
                         // Ensure quiz URL is included
-                        if (!message.includes(quizUrl)) {
-                            message += `\n\n${quizUrl}`;
+                        if (!message.includes(currentQuizUrl)) {
+                            message += `\n\n${currentQuizUrl}`;
                         }
 
                         form.setValue(`socialMedia.${platform}.message`, message);
@@ -137,7 +156,17 @@ const MultiPlatformSection = ({ form }: MultiPlatformSectionProps) => {
                                     onClick={async () => {
                                         try {
                                             setIsGenerating(true);
+                                            const currentQuizUrl = getQuizUrlSafe();
                                             
+                                            if (!currentQuizUrl) {
+                                                toast({
+                                                    title: "Error",
+                                                    description: "Quiz must be initialized before generating content.",
+                                                    variant: "destructive",
+                                                });
+                                                return;
+                                            }
+
                                             // First, generate the generic message
                                             const genericResponse = await axios.post('/api/social/multiplatform/generate-message', {
                                                 topic: form.getValues("topic"),
@@ -146,7 +175,7 @@ const MultiPlatformSection = ({ form }: MultiPlatformSectionProps) => {
                                                 apiKey: form.getValues("apiKey"),
                                                 serverUrl: form.getValues("serverUrl"),
                                                 model: form.getValues("model"),
-                                                quizUrl,
+                                                quizUrl: currentQuizUrl,
                                                 selectedPlatforms: form.getValues("socialMedia.selectedPlatforms")
                                             });
                                             
@@ -175,11 +204,11 @@ const MultiPlatformSection = ({ form }: MultiPlatformSectionProps) => {
                                             } else {
                                                 throw new Error(genericResponse.data.error || "Failed to generate generic message");
                                             }
-                                        } catch (error: any) {
-                                            console.error("Error generating content:", error);
+                                        } catch (error) {
+                                            console.error("Content generation error:", error);
                                             toast({
                                                 title: "Generation Failed",
-                                                description: error.response?.data?.error || error.message || "Failed to generate content. Please try again.",
+                                                description: error instanceof Error ? error.message : "Failed to generate content. Please try again.",
                                                 variant: "destructive",
                                             });
                                         } finally {
@@ -199,14 +228,13 @@ const MultiPlatformSection = ({ form }: MultiPlatformSectionProps) => {
                             </div>
                         </FormControl>
                         <FormDescription>
-                            Write content that will work across all selected platforms. The AI will help create platform-specific versions below.
+                            Write content that will be adapted for each selected platform. The quiz link will be automatically included.
                         </FormDescription>
                         <FormMessage />
                     </FormItem>
                 )}
             />
 
-            {/* Platform-Specific Messages Section */}
             {form.watch("socialMedia.selectedPlatforms")?.length > 0 && (
                 <div className="space-y-4 mt-8">
                     <h4 className="text-sm font-medium">Platform-Specific Messages</h4>
@@ -242,6 +270,6 @@ const MultiPlatformSection = ({ form }: MultiPlatformSectionProps) => {
             )}
         </div>
     );
-}
+};
 
 export default MultiPlatformSection; 

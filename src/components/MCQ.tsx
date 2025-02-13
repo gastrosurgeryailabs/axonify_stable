@@ -18,6 +18,7 @@ import { playSound } from '@/lib/sounds';
 import TopicImage from './TopicImage';
 import Image from 'next/image';
 import GameTimer from './GameTimer';
+import { getQuizUrl } from '@/utils/quizUrl';
 
 type Props = {
     game: Game & {
@@ -145,7 +146,7 @@ const MCQ = ({game}: Props) => {
 
                         <a 
                             href={`https://wa.me/?text=${encodeURIComponent(
-                                `Hey! Check out this awesome quiz on Axonify!\n\nTopic: ${game.topic}\nType: Multiple Choice Quiz\nQuestions: ${game.questions.length}\n\nI just scored ${Math.round((correctAnswers / game.questions.length) * 100)}%! Can you beat my score?\n\nTry it out: ${process.env.NEXT_PUBLIC_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '')}/play/mcq/${game.id}`
+                                `Hey! Check out this awesome quiz on Axonify!\n\nTopic: ${game.topic}\nType: Multiple Choice Quiz\nQuestions: ${game.questions.length}\n\nI just scored ${Math.round((correctAnswers / game.questions.length) * 100)}%! Can you beat my score?\n\nTry it out: ${getQuizUrl('mcq', game.id)}`
                             )}`}
                             target="_blank"
                             rel="noopener noreferrer"

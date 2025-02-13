@@ -6,7 +6,7 @@ import { Button } from "./ui/button";
 import { Loader2 } from "lucide-react";
 import axios from "axios";
 import { useToast } from "@/hooks/use-toast";
-import { getQuizUrl } from '@/lib/utils';
+import { getQuizUrl } from '@/utils/quizUrl';
 
 interface YouTubeSectionProps {
     form: UseFormReturn<any>;
@@ -29,7 +29,6 @@ const YouTubeSection = ({ form }: YouTubeSectionProps) => {
                             <div className="space-y-2">
                                 <Textarea
                                     placeholder={`Write your YouTube video description here. Quiz link: '${quizUrl}'`}
-                                    maxLength={5000}
                                     {...field}
                                 />
                                 <Button
@@ -55,18 +54,13 @@ const YouTubeSection = ({ form }: YouTubeSectionProps) => {
                                                 let message = response.data.message;
                                                 message = message.replace(/^\*\*Description:\*\*\s*/i, '');
                                                 
-                                                if (message.includes("link in bio")) {
-                                                    message = message.replace(
-                                                        /👇\s*\*\*Click the link in our bio[^!]*!\*\*\s*👇/,
-                                                        `🎯 Take the quiz now: ${quizUrl} 🎯`
-                                                    );
-                                                } else if (!message.includes(quizUrl)) {
-                                                    message += `\n\n🎯 Test your knowledge with our interactive quiz: ${quizUrl}`;
+                                                if (!message.includes(quizUrl)) {
+                                                    message += `\n\n🎯 Take the quiz here: ${quizUrl}`;
                                                 }
                                                 
-                                                // Ensure message is within YouTube's limit
-                                                if (message.length > 5000) {
-                                                    message = message.substring(0, 4997) + "...";
+                                                // Add YouTube-specific elements if not present
+                                                if (!message.includes('TIMESTAMPS')) {
+                                                    message += '\n\nTIMESTAMPS:\n0:00 - Introduction\n0:30 - Quiz Overview\n1:00 - How to Participate';
                                                 }
                                                 
                                                 form.setValue("socialMedia.youtube.message", message);
