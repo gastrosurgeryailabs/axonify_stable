@@ -17,7 +17,7 @@ import { useRouter } from 'next/navigation';
 import LoadingQuestions from './LoadingQuestions';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import {ShareButton }from './ShareButton';
+import ShareButton from './ShareButton';
 import { Textarea } from './ui/textarea';
 import { AxiosRequestConfig } from 'axios';
 import { useEffect } from 'react';
@@ -282,6 +282,7 @@ const QuizCreation = ({topicParam}: Props) => {
     const [isInitializing, setIsInitializing] = React.useState(false);
     const [isCheckingConnection, setIsCheckingConnection] = React.useState(false);
     const [connectionStatus, setConnectionStatus] = React.useState<'connected' | 'disconnected' | null>(null);
+    const [isLoadingCredentials, setIsLoadingCredentials] = React.useState(true);
     
     const form = useForm<Input>({
         resolver: zodResolver(quizCreationSchema),
@@ -304,8 +305,74 @@ const QuizCreation = ({topicParam}: Props) => {
         }
     });
 
-    // Watch for server URL changes
+    // Single declarations for watched values
     const serverUrl = form.watch('serverUrl');
+    const apiKey = form.watch('apiKey');
+
+    // Load saved credentials on component mount
+    React.useEffect(() => {
+        const loadCredentials = async () => {
+            try {
+                const response = await fetch('/api/user/credentials');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data) {
+                        form.setValue('serverUrl', data.anythingLLMUrl || '');
+                        form.setValue('apiKey', data.anythingLLMKey || '');
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading credentials:', error);
+            } finally {
+                setIsLoadingCredentials(false);
+            }
+        };
+        loadCredentials();
+    }, [form]);
+
+    // Save credentials when they change
+    const saveCredentials = async (url: string, key: string) => {
+        try {
+            const response = await fetch('/api/user/credentials', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    anythingLLMUrl: url,
+                    anythingLLMKey: key,
+                }),
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to save credentials');
+            }
+        } catch (error) {
+            console.error('Error saving credentials:', error);
+            toast({
+                title: "Error",
+                description: "Failed to save credentials",
+                variant: "destructive",
+            });
+        }
+    };
+    
+    // Combined effect for credential changes and server URL
+    React.useEffect(() => {
+        if (serverUrl && apiKey && !isLoadingCredentials) {
+            saveCredentials(serverUrl, apiKey);
+        }
+        
+        if (serverUrl && serverUrl.length > 0 && connectionStatus === 'connected') {
+            setAnythingLLMUrl(serverUrl);
+        }
+        
+        if (apiKey && apiKey.length > 0 && connectionStatus === 'connected') {
+            fetchWorkspaces(apiKey);
+        }
+    }, [serverUrl, apiKey, connectionStatus, isLoadingCredentials]);
+
+    // Watch for server URL changes
     useEffect(() => {
         if (serverUrl && serverUrl.length > 0 && connectionStatus === 'connected') {
             setAnythingLLMUrl(serverUrl);
@@ -313,7 +380,6 @@ const QuizCreation = ({topicParam}: Props) => {
     }, [serverUrl, connectionStatus]);
 
     // Watch for API key changes
-    const apiKey = form.watch('apiKey');
     useEffect(() => {
         if (apiKey && apiKey.length > 0 && connectionStatus === 'connected') {
             fetchWorkspaces(apiKey);
