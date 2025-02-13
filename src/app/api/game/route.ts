@@ -20,7 +20,7 @@ export async function POST(req: Request, res: Response) {
         const body = await req.json();
         console.log("Received request body:", body);
 
-        const { amount, topic, type, targetLanguage, prompt, model, apiKey, completionMessage, serverUrl, uploadServerUrl } = quizCreationSchema.parse(body);
+        const { amount, topic, type, targetLanguage, prompt, model, apiKey, completionMessage, serverUrl } = quizCreationSchema.parse(body);
         console.log("Request body validated successfully");
         console.log("Game API received model:", model);
         console.log("Creating game with:", { amount, topic, type, targetLanguage, prompt, model });
@@ -38,7 +38,16 @@ export async function POST(req: Request, res: Response) {
                 messages: [
                     {
                         role: "system",
-                        content: `You are a quiz generator. Return only a single JSON array without any additional text, markdown, or explanation. The response must be a single array containing all questions, like this exact format: [{"question": "First question", "options": ["A", "B", "C", "D"], "answer": "A"}, {"question": "Second question", "options": ["W", "X", "Y", "Z"], "answer": "Z"}]. For MCQ questions: each question needs "question" (string), "options" (array of exactly 4 strings), and "answer" (string matching one option). For open-ended: each needs "question" and "answer" (both strings).`
+                        content: `You are a quiz generator. Return a single JSON array of questions. Never mention or reference any source documents in the questions - make them appear independent and natural. Format:
+[
+    {
+        "question": "Clear question text",
+        "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+        "answer": "Exact match of correct option"
+    }
+]
+For MCQ: need question, options (4 strings), and answer matching an option.
+For open-ended: need only question and answer fields.`
                     },
                     {
                         role: "user",

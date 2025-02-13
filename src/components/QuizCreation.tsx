@@ -17,7 +17,7 @@ import { useRouter } from 'next/navigation';
 import LoadingQuestions from './LoadingQuestions';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import {ShareButton }from './ShareButton';
+import ShareButton from './ShareButton';
 import { Textarea } from './ui/textarea';
 import { AxiosRequestConfig } from 'axios';
 import { useEffect } from 'react';
@@ -305,6 +305,10 @@ const QuizCreation = ({topicParam}: Props) => {
         }
     });
 
+    // Single declarations for watched values
+    const serverUrl = form.watch('serverUrl');
+    const apiKey = form.watch('apiKey');
+
     // Load saved credentials on component mount
     React.useEffect(() => {
         const loadCredentials = async () => {
@@ -327,7 +331,7 @@ const QuizCreation = ({topicParam}: Props) => {
     }, [form]);
 
     // Save credentials when they change
-    const saveCredentials = async (serverUrl: string, apiKey: string) => {
+    const saveCredentials = async (url: string, key: string) => {
         try {
             const response = await fetch('/api/user/credentials', {
                 method: 'POST',
@@ -335,8 +339,8 @@ const QuizCreation = ({topicParam}: Props) => {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    anythingLLMUrl: serverUrl,
-                    anythingLLMKey: apiKey,
+                    anythingLLMUrl: url,
+                    anythingLLMKey: key,
                 }),
             });
             
@@ -352,19 +356,23 @@ const QuizCreation = ({topicParam}: Props) => {
             });
         }
     };
-
-    // Watch for credential changes
-    const serverUrl = form.watch('serverUrl');
-    const apiKey = form.watch('apiKey');
     
+    // Combined effect for credential changes and server URL
     React.useEffect(() => {
         if (serverUrl && apiKey && !isLoadingCredentials) {
             saveCredentials(serverUrl, apiKey);
         }
-    }, [serverUrl, apiKey, isLoadingCredentials]);
+        
+        if (serverUrl && serverUrl.length > 0 && connectionStatus === 'connected') {
+            setAnythingLLMUrl(serverUrl);
+        }
+        
+        if (apiKey && apiKey.length > 0 && connectionStatus === 'connected') {
+            fetchWorkspaces(apiKey);
+        }
+    }, [serverUrl, apiKey, connectionStatus, isLoadingCredentials]);
 
     // Watch for server URL changes
-    const serverUrl = form.watch('serverUrl');
     useEffect(() => {
         if (serverUrl && serverUrl.length > 0 && connectionStatus === 'connected') {
             setAnythingLLMUrl(serverUrl);
@@ -372,7 +380,6 @@ const QuizCreation = ({topicParam}: Props) => {
     }, [serverUrl, connectionStatus]);
 
     // Watch for API key changes
-    const apiKey = form.watch('apiKey');
     useEffect(() => {
         if (apiKey && apiKey.length > 0 && connectionStatus === 'connected') {
             fetchWorkspaces(apiKey);
