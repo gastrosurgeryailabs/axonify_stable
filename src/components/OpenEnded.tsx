@@ -18,6 +18,7 @@ import { playSound } from '@/lib/sounds';
 import TopicImage from './TopicImage';
 import GameTimer from './GameTimer';
 import Image from 'next/image';
+import { getQuizUrl } from '@/utils/quizUrl';
 
 type Props = {
     game: Game & {
@@ -151,7 +152,7 @@ const OpenEnded = ({game}: Props) => {
 
                         <a 
                             href={`https://wa.me/?text=${encodeURIComponent(
-                                `Hey! Check out this awesome quiz on Axonify!\n\nTopic: ${game.topic}\nType: Open Ended Quiz\nQuestions: ${game.questions.length}\n\nI just completed the quiz with ${averagePercentage.toFixed(1)}% accuracy! Can you beat my score?\n\nTry it out: ${process.env.NEXT_PUBLIC_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '')}/play/open-ended/${game.id}`
+                                `Hey! Check out this awesome quiz on Axonify!\n\nTopic: ${game.topic}\nType: Open Ended Quiz\nQuestions: ${game.questions.length}\n\nI just completed the quiz with ${averagePercentage.toFixed(1)}% accuracy! Can you beat my score?\n\nTry it out: ${getQuizUrl('open_ended', game.id)}`
                             )}`}
                             target="_blank"
                             rel="noopener noreferrer"

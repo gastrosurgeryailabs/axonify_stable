@@ -6,7 +6,7 @@ import { Button } from "./ui/button";
 import { Loader2 } from "lucide-react";
 import axios from "axios";
 import { useToast } from "@/hooks/use-toast";
-import { getQuizUrl } from '@/lib/utils';
+import { getQuizUrl } from '@/utils/quizUrl';
 
 interface TwitterSectionProps {
     form: UseFormReturn<any>;

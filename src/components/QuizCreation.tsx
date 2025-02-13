@@ -38,6 +38,7 @@ import UploadAttachments from './UploadAttachments';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from './ui/hover-card';
 import Link from 'next/link';
 import { getBaseUrl } from "@/lib/utils";
+import { getQuizUrl } from '@/utils/quizUrl';
 
 type Props = {
     topicParam: string;
@@ -434,15 +435,15 @@ const QuizCreation = ({topicParam}: Props) => {
 
     // Add validation for AnythingLLM sections
     const isAnythingLLMConfigValid = () => {
-        return connectionStatus === 'connected' && form.getValues('apiKey')?.length > 0;
+        return form.getValues('serverUrl')?.length > 0 && form.getValues('apiKey')?.length > 0;
     };
 
     // Update fetchWorkspaces to check connection status
     const fetchWorkspaces = async (apiKey: string) => {
-        if (!isAnythingLLMConfigValid()) {
+        if (!form.getValues('serverUrl') || !apiKey) {
             toast({
                 title: "Error",
-                description: "Please connect to AnythingLLM server first and provide an API key",
+                description: "Please provide both AnythingLLM server URL and API key",
                 variant: "destructive",
             });
             return;
@@ -581,6 +582,16 @@ const QuizCreation = ({topicParam}: Props) => {
     // Function to handle quiz initialization
     const handleInitialize = async () => {
         try {
+            const topic = form.getValues('topic');
+            if (!topic || topic.trim().length < 2) {
+                toast({
+                    title: "Validation Error",
+                    description: "Please enter a topic with at least 2 characters.",
+                    variant: "destructive",
+                });
+                return;
+            }
+
             setIsInitializing(true);
             let formData = form.getValues();
             
@@ -655,6 +666,15 @@ const QuizCreation = ({topicParam}: Props) => {
     };
 
     async function onSubmit(input: Input) {
+        if (!input.topic || input.topic.trim().length < 2) {
+            toast({
+                title: "Validation Error",
+                description: "Please enter a topic with at least 2 characters.",
+                variant: "destructive",
+            });
+            return;
+        }
+
         if (!isAnythingLLMConfigValid()) {
             toast({
                 title: "Error",
@@ -712,6 +732,14 @@ const QuizCreation = ({topicParam}: Props) => {
             setShowLoader(false);
         }
     }
+
+    // Update the helper function to ensure type and gameId are strings
+    const getQuizUrlSafe = () => {
+        const type = form.watch('type') as string;
+        const gameId = form.watch('gameId') as string;
+        if (!type || !gameId || typeof type !== 'string' || typeof gameId !== 'string') return '';
+        return getQuizUrl(type, gameId);
+    };
 
     if (showLoader) {
         return <LoadingQuestions finished={finished}/>;
@@ -1000,7 +1028,7 @@ const QuizCreation = ({topicParam}: Props) => {
                                                                 {field.value === "new" 
                                                                     ? "+ Create New Workspace"
                                                                     : workspaces.find(w => w.model === field.value)
-                                                                        ? `${workspaces.find(w => w.model === field.value)?.name} (${workspaces.find(w => w.model === field.value)?.llm.provider} / ${workspaces.find(w => w.model === field.value)?.llm.model})`
+                                                                        ? `${workspaces.find(w => w.model === field.value)?.name}`
                                                                         : "Select a model"
                                                                 }
                                                             </SelectValue>
@@ -1017,7 +1045,7 @@ const QuizCreation = ({topicParam}: Props) => {
                                                                     key={workspace.model} 
                                                                     value={workspace.model}
                                                                 >
-                                                                    {workspace.name} ({workspace.llm.provider} / {workspace.llm.model})
+                                                                    {workspace.name}
                                                                 </SelectItem>
                                                             );
                                                         })}
@@ -1246,7 +1274,7 @@ const QuizCreation = ({topicParam}: Props) => {
                                             <div className="bg-muted rounded-md p-3 flex items-center gap-2">
                                                 <div className="flex-1 break-all text-sm">
                                                     <code>
-                                                        {`${window.location.origin}/play/${form.watch('type')}/${form.watch('gameId')}`}
+                                                        {getQuizUrlSafe()}
                                                     </code>
                                                 </div>
                                                 <div className="flex gap-2">
@@ -1256,12 +1284,14 @@ const QuizCreation = ({topicParam}: Props) => {
                                                         type="button"
                                                         onClick={(e) => {
                                                             e.preventDefault();
-                                                            const url = `${window.location.origin}/play/${form.watch('type')}/${form.watch('gameId')}`;
-                                                            navigator.clipboard.writeText(url);
-                                                            toast({
-                                                                title: "Copied!",
-                                                                description: "Quiz link copied to clipboard",
-                                                            });
+                                                            const url = getQuizUrlSafe();
+                                                            if (url) {
+                                                                navigator.clipboard.writeText(url);
+                                                                toast({
+                                                                    title: "Copied!",
+                                                                    description: "Quiz link copied to clipboard",
+                                                                });
+                                                            }
                                                         }}
                                                     >
                                                         Copy Link
@@ -1273,8 +1303,10 @@ const QuizCreation = ({topicParam}: Props) => {
                                                     type="button"
                                                     className="w-full"
                                                     onClick={() => {
-                                                        const url = `${window.location.origin}/play/${form.watch('type')}/${form.watch('gameId')}`;
-                                                        window.open(url, '_blank');
+                                                        const url = getQuizUrlSafe();
+                                                        if (url) {
+                                                            window.open(url, '_blank');
+                                                        }
                                                     }}
                                                 >
                                                     Start Quiz
