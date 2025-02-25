@@ -295,6 +295,7 @@ const QuizCreation = ({topicParam}: Props) => {
             temperature: 0.7,
             model: "",
             prompt: "Generate questions that are clear and engaging. For technical topics, ensure explanations are beginner-friendly. Include real-world examples where applicable.",
+            explanationPrompt: "Provide clear, concise explanations for why the answer is correct. Include relevant facts and context that help understand the concept.",
             apiKey: "",
             serverUrl: "",
             completionMessage: "Great job on completing the quiz!",
@@ -623,7 +624,9 @@ const QuizCreation = ({topicParam}: Props) => {
                 topic: formData.topic,
                 targetLanguage: formData.targetLanguage,
                 prompt: formData.prompt,
+                explanationPrompt: formData.explanationPrompt,
                 apiKey: formData.apiKey,
+                serverUrl: formData.serverUrl,
                 completionMessage: formData.completionMessage || "Great job on completing the quiz!",
                 initialized: true
             };
@@ -714,6 +717,7 @@ const QuizCreation = ({topicParam}: Props) => {
                 topic: input.topic,
                 targetLanguage: input.targetLanguage,
                 prompt: input.prompt,
+                explanationPrompt: input.explanationPrompt,
                 apiKey: input.apiKey,
                 serverUrl: input.serverUrl,
                 completionMessage: input.completionMessage || "Great job on completing the quiz!"
@@ -788,6 +792,27 @@ const QuizCreation = ({topicParam}: Props) => {
                                         </FormControl>
                                         <FormDescription>
                                             Customize your quiz by writing specific instructions for how the questions should be generated.
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            <FormField
+                                control={form.control}
+                                name="explanationPrompt"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Explanation Prompt</FormLabel>
+                                        <FormControl>
+                                            <Textarea 
+                                                placeholder="Enter instructions for how explanations should be generated..." 
+                                                className="min-h-[100px]"
+                                                {...field} 
+                                            />
+                                        </FormControl>
+                                        <FormDescription>
+                                            Customize how explanations are generated for each question. These explanations will be shown to users after they answer.
                                         </FormDescription>
                                         <FormMessage />
                                     </FormItem>

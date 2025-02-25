@@ -2,7 +2,7 @@
 
 import { Game, Question } from '@prisma/client'
 import { differenceInSeconds } from 'date-fns';
-import { BarChart, ChevronRight, Loader2 } from 'lucide-react'
+import { BarChart, ChevronRight, Loader2, Check } from 'lucide-react'
 import React from 'react'
 import { Card, CardDescription, CardHeader, CardTitle } from './ui/card'
 import { Button, buttonVariants } from './ui/button';
@@ -131,8 +131,8 @@ const MCQ = ({game}: Props) => {
                     </CardHeader>
                     <div className="flex flex-col gap-4 mt-4">
                         <Link href={`/statistics/${game.id}`} className={cn(buttonVariants({ size: "lg" }))}>
-                            View Statistics
-                            <BarChart className='w-4 h-4 ml-2'/>
+                            View your answers
+                            <Check className='w-4 h-4 ml-2'/>
                         </Link>
                         
                         <div className="relative">

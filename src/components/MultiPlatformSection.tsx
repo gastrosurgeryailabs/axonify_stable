@@ -1,13 +1,13 @@
 import { useState, useCallback, useEffect } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { FormControl, FormField, FormItem, FormLabel, FormDescription, FormMessage } from "./ui/form";
-import { Textarea } from "./ui/textarea";
 import { Button } from "./ui/button";
 import { Loader2, RefreshCcw } from "lucide-react";
 import axios from "axios";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { getQuizUrl } from '@/utils/quizUrl';
+import { TextareaWithActions } from "./ui/textarea-with-actions";
 
 interface MultiPlatformSectionProps {
     form: UseFormReturn<any>;
@@ -144,8 +144,9 @@ const MultiPlatformSection = ({ form }: MultiPlatformSectionProps) => {
                         </FormLabel>
                         <FormControl>
                             <div className="space-y-2">
-                                <Textarea
+                                <TextareaWithActions
                                     placeholder={`Write your content here. It will be adapted for each selected platform. Quiz link: '${quizUrl}'`}
+                                    title="Multi-Platform Content"
                                     {...field}
                                 />
                                 <Button
@@ -253,9 +254,10 @@ const MultiPlatformSection = ({ form }: MultiPlatformSectionProps) => {
                                         render={({ field }) => (
                                             <FormItem>
                                                 <FormControl>
-                                                    <Textarea
+                                                    <TextareaWithActions
                                                         placeholder={`${platform} specific content will appear here`}
                                                         className="min-h-[100px]"
+                                                        title={`${platform.charAt(0).toUpperCase() + platform.slice(1)} Content`}
                                                         {...field}
                                                     />
                                                 </FormControl>

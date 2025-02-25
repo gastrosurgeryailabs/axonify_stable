@@ -1,13 +1,10 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -17,12 +14,12 @@ model Account {
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
+  refresh_token     String?
+  access_token      String?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? @db.Text
+  id_token          String?
   session_state     String?
   user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -41,32 +38,27 @@ model Session {
 }
 
 model User {
-  id            String    @id @default(cuid())
+  id            String           @id @default(cuid())
   name          String?
-  email         String?   @unique
+  email         String?          @unique
   emailVerified DateTime?
   image         String?
-  games         Game[]
   accounts      Account[]
+  games         Game[]
   sessions      Session[]
   credentials   UserCredentials?
 }
 
-enum GameType {
-  mcq
-  open_ended
-}
-
 model Game {
-  id          String     @id @default(cuid())
-  userId      String
-  questions   Question[]
-  timeStarted DateTime
-  topic       String
-  timeEnded   DateTime?
-  gameType    GameType
+  id                String     @id @default(cuid())
+  userId            String
+  timeStarted       DateTime
+  topic             String
+  timeEnded         DateTime?
+  gameType          GameType
   completionMessage String?
-  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questions         Question[]
 
   @@index([userId])
 }
@@ -82,25 +74,30 @@ model Question {
   question          String
   answer            String
   gameId            String
-  options           Json? // for mcq questions
-  percentageCorrect Float? // for open_ended questions
-  isCorrect         Boolean? // for mcq questions
+  options           Json?
+  percentageCorrect Float?
+  isCorrect         Boolean?
   questionType      GameType
   userAnswer        String?
-
-  game Game @relation(fields: [gameId], references: [id])
+  explanation       String?
+  game              Game     @relation(fields: [gameId], references: [id])
 
   @@index([gameId])
 }
 
 model UserCredentials {
-  id              String   @id @default(cuid())
-  userId          String   @unique
-  anythingLLMUrl  String
-  anythingLLMKey  String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  anythingLLMUrl String
+  anythingLLMKey String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+enum GameType {
+  mcq
+  open_ended
 }

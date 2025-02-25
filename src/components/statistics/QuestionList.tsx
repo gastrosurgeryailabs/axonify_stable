@@ -25,6 +25,9 @@ const QuestionList = ({questions}: Props) => {
         <TableBody>
             <>
             {questions.map((question, index) => {
+                // Use type assertion to handle the explanation field
+                const questionWithExplanation = question as Question & { explanation?: string };
+                
                 return (
                 <TableRow key={question.id}>
                     <TableCell className='font-medium'>
@@ -35,6 +38,15 @@ const QuestionList = ({questions}: Props) => {
                     <br />
                     <br />
                     <span className='font-semibold'>{question.answer}</span>
+                    {questionWithExplanation.explanation && (
+                        <>
+                            <br />
+                            <br />
+                            <span className='text-sm text-gray-600 italic'>
+                                <span className='font-medium not-italic'>Explanation:</span> {questionWithExplanation.explanation}
+                            </span>
+                        </>
+                    )}
                     </TableCell>
                     {gameType === 'mcq' && (
                             <TableCell className={

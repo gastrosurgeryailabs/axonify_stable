@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { FormControl, FormField, FormItem, FormLabel, FormDescription, FormMessage } from "./ui/form";
-import { Textarea } from "./ui/textarea";
 import { Button } from "./ui/button";
 import { Loader2 } from "lucide-react";
 import axios from "axios";
 import { useToast } from "@/hooks/use-toast";
 import { getQuizUrl } from '@/utils/quizUrl';
+import { TextareaWithActions } from "./ui/textarea-with-actions";
 
 interface InstagramSectionProps {
     form: UseFormReturn<any>;
@@ -27,9 +27,10 @@ const InstagramSection = ({ form }: InstagramSectionProps) => {
                         <FormLabel>Post Caption</FormLabel>
                         <FormControl>
                             <div className="space-y-2">
-                                <Textarea
+                                <TextareaWithActions
                                     placeholder={`Write your Instagram caption here. Quiz link: '${quizUrl}'`}
                                     maxLength={2200}
+                                    title="Instagram Caption"
                                     {...field}
                                 />
                                 <Button

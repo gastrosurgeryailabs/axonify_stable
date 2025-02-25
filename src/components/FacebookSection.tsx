@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { FormControl, FormField, FormItem, FormLabel, FormDescription, FormMessage } from "./ui/form";
-import { Textarea } from "./ui/textarea";
 import { Button } from "./ui/button";
 import { Loader2 } from "lucide-react";
 import axios from "axios";
 import { useToast } from "@/hooks/use-toast";
 import { getQuizUrl } from '@/utils/quizUrl';
+import { TextareaWithActions } from "./ui/textarea-with-actions";
 
 interface FacebookSectionProps {
     form: UseFormReturn<any>;
@@ -27,8 +27,9 @@ const FacebookSection = ({ form }: FacebookSectionProps) => {
                         <FormLabel>Post Message</FormLabel>
                         <FormControl>
                             <div className="space-y-2">
-                                <Textarea
+                                <TextareaWithActions
                                     placeholder={`Write your Facebook post here. Quiz link: '${quizUrl}'`}
+                                    title="Facebook Post"
                                     {...field}
                                 />
                                 <Button

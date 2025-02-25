@@ -3,7 +3,7 @@
 import { cn, formatTimeDelta } from '@/lib/utils';
 import { Game, Question } from '@prisma/client'
 import { differenceInSeconds } from 'date-fns';
-import { BarChart, ChevronRight, Loader2 } from 'lucide-react';
+import { BarChart, ChevronRight, Loader2, Check } from 'lucide-react';
 import React from 'react'
 import { Card, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button, buttonVariants } from './ui/button';
@@ -137,8 +137,8 @@ const OpenEnded = ({game}: Props) => {
                             href={`/statistics/${game.id}`} 
                             className={cn(buttonVariants({ size: "lg" }))}
                         >
-                            View Statistics
-                            <BarChart className='w-4 h-4 ml-2'/>
+                            View your answers
+                            <Check className='w-4 h-4 ml-2'/>
                         </Link>
 
                         <div className="relative">
