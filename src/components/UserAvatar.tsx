@@ -49,6 +49,7 @@ const UserAvatar = ({user}: Props) => {
                         </AvatarFallback>
                     )}
                 </Avatar>
+                
             </DropdownMenuTrigger>
             
             <DropdownMenuContent align="end" className="w-[200px]">
