@@ -405,7 +405,7 @@ Requirements: ${prompt}`
             }
 
             return newGame;
-        });
+        }, { timeout: 10000 });
 
         return NextResponse.json({
             gameId: game.id
